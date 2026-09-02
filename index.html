@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sales Coordinator Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --navy: #0f2942;
+    --blue: #1e5a8e;
+    --teal: #2f9e6f;
+    --amber: #d9922f;
+    --red: #c0453a;
+    --grey: #667a8c;
+    --bg: #eef2f6;
+    --card: #ffffff;
+    --border: #dbe3ea;
+    --text: #1b2a38;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:'Segoe UI',Arial,sans-serif; background:var(--bg); color:var(--text); }
+
+  /* ---- Login screen ---- */
+  #login-screen {
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, var(--navy), var(--blue));
+  }
+  #login-screen .card {
+    background: #fff; padding: 40px 36px; border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25); width: 100%; max-width: 380px;
+  }
+  #login-screen h1 { font-size: 20px; color: var(--navy); margin: 0 0 4px; }
+  #login-screen p.sub { color: #667; font-size: 13px; margin: 0 0 24px; }
+  #login-screen label { font-size: 13px; color: #445; display: block; margin-bottom: 6px; font-weight: 600; }
+  #login-screen input[type=password] {
+    width: 100%; padding: 12px 14px; border: 1px solid #d7dee6; border-radius: 8px;
+    font-size: 14px; margin-bottom: 18px;
+  }
+  #login-screen button {
+    width: 100%; padding: 12px; background: var(--blue); color: #fff; border: none;
+    border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  #login-screen button:hover { background: var(--navy); }
+  #login-error {
+    background: #fdecea; color: #b3261e; padding: 10px 12px; border-radius: 6px;
+    font-size: 13px; margin-bottom: 16px; display: none;
+  }
+
+  /* ---- Header ---- */
+  header {
+    background: var(--navy); color: #fff; padding: 14px 28px;
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+  }
+  header h1 { font-size: 18px; margin: 0; font-weight: 600; }
+  header .sub { font-size: 12px; color: #b7c6d4; margin-top: 2px; }
+  header .actions { display: flex; gap: 10px; align-items: center; }
+  header button {
+    background: var(--blue); color: #fff; border: none; padding: 8px 14px;
+    border-radius: 6px; font-size: 13px; cursor: pointer;
+  }
+  header button:hover { background: #16456e; }
+  #refresh-status { font-size: 11px; color: #9fb3c4; }
+
+  /* ---- Filter bar ---- */
+  .filter-bar {
+    background: var(--card); border-bottom: 1px solid var(--border); padding: 14px 28px;
+    display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .filter-group { display: flex; flex-direction: column; gap: 4px; }
+  .filter-group label { font-size: 11px; color: var(--grey); font-weight: 600; }
+  .filter-group select, .filter-group input[type=date] {
+    padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px;
+    font-size: 13px; min-width: 150px; background: #fff;
+  }
+  .filter-bar .clear-btn {
+    background: transparent; border: 1px solid var(--border); color: var(--grey);
+    padding: 7px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; height: 32px;
+  }
+  .filter-bar .clear-btn:hover { border-color: var(--red); color: var(--red); }
+
+  /* ---- Main layout ---- */
+  main { padding: 24px 28px 60px; max-width: 1400px; margin: 0 auto; }
+
+  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 16px; margin-bottom: 24px; }
+  .kpi-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
+  .kpi-card .label { font-size: 12px; color: var(--grey); font-weight: 600; margin-bottom: 6px; }
+  .kpi-card .value { font-size: 28px; font-weight: 700; color: var(--navy); }
+  .kpi-card.revenue .value { color: var(--teal); }
+  .kpi-card .subvalue { font-size: 12px; color: var(--grey); margin-top: 4px; }
+
+  .panel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  @media (max-width: 900px) { .panel-grid { grid-template-columns: 1fr; } }
+
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  .panel h2 { font-size: 14px; margin: 0 0 14px; color: var(--navy); font-weight: 700; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 8px 10px; color: var(--grey); font-weight: 600; border-bottom: 2px solid var(--border); font-size: 12px; }
+  td { padding: 8px 10px; border-bottom: 1px solid #eef1f4; }
+  tr:last-child td { border-bottom: none; }
+  td.num, th.num { text-align: right; }
+
+  .bar-cell { display: flex; align-items: center; gap: 8px; }
+  .bar-track { flex: 1; background: #eef2f6; border-radius: 4px; height: 8px; overflow: hidden; min-width: 60px; }
+  .bar-fill { height: 100%; background: var(--blue); border-radius: 4px; }
+
+  .status-pill { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .status-Closed---Won { background: #e2f3e9; color: var(--teal); }
+  .status-Interested { background: #eaf0fb; color: var(--blue); }
+  .status-Not-Interested { background: #fbeaea; color: var(--red); }
+  .status-No-Response { background: #f3f1e9; color: var(--amber); }
+  .status-Invalid-Inquiry { background: #f1f1f1; color: var(--grey); }
+  .status-Out-of-Service-Area { background: #f1f1f1; color: var(--grey); }
+  .status-Lost-to-Competitor { background: #fbeaea; color: var(--red); }
+  .status-Duplicate { background: #f1f1f1; color: var(--grey); }
+  .status-Uncategorized { background: #f1f1f1; color: var(--grey); }
+
+  .full-width { grid-column: 1 / -1; }
+
+  #leads-table-wrap { overflow-x: auto; max-height: 480px; overflow-y: auto; }
+  #leads-table-wrap table { min-width: 900px; }
+  #leads-table-wrap thead th { position: sticky; top: 0; background: var(--card); }
+
+  .empty-note { color: var(--grey); font-size: 13px; padding: 20px 0; text-align: center; }
+  .loading-banner {
+    background: #fff8e6; border: 1px solid #f0d896; color: #8a6a1a;
+    padding: 10px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 20px;
+  }
+  #dashboard-screen { display: none; }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     LOGIN SCREEN
+     ============================================================ -->
+<div id="login-screen">
+  <div class="card">
+    <h1>Sales Coordinator Dashboard</h1>
+    <p class="sub">GTPL KCBPL &mdash; Lead &amp; Revenue Tracker</p>
+    <div id="login-error">Incorrect password. Please try again.</div>
+    <form id="login-form">
+      <label for="password">Password</label>
+      <input type="password" id="password" autofocus required>
+      <button type="submit">Login</button>
+    </form>
+  </div>
+</div>
+
+<!-- ============================================================
+     DASHBOARD SCREEN
+     ============================================================ -->
+<div id="dashboard-screen">
+  <header>
+    <div>
+      <h1>Sales Coordinator Dashboard</h1>
+      <div class="sub">GTPL KCBPL &mdash; BB / ILL Campaign Leads</div>
+    </div>
+    <div class="actions">
+      <span id="refresh-status"></span>
+      <button onclick="refreshData()">Refresh data</button>
+      <button onclick="logout()">Log out</button>
+    </div>
+  </header>
+
+  <div class="filter-bar">
+    <div class="filter-group">
+      <label for="f-month">Month</label>
+      <select id="f-month"><option value="">All months</option></select>
+    </div>
+    <div class="filter-group">
+      <label for="f-rm">RM</label>
+      <select id="f-rm"><option value="">All RMs</option></select>
+    </div>
+    <div class="filter-group">
+      <label for="f-source">Lead source</label>
+      <select id="f-source"><option value="">All sources</option></select>
+    </div>
+    <div class="filter-group">
+      <label for="f-connection">Connection type</label>
+      <select id="f-connection"><option value="">All types</option></select>
+    </div>
+    <div class="filter-group">
+      <label for="f-date-from">From date</label>
+      <input type="date" id="f-date-from">
+    </div>
+    <div class="filter-group">
+      <label for="f-date-to">To date</label>
+      <input type="date" id="f-date-to">
+    </div>
+    <button class="clear-btn" onclick="clearFilters()">Clear filters</button>
+  </div>
+
+  <main>
+    <div id="loading-banner" class="loading-banner" style="display:none;">Loading data&hellip;</div>
+
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <div class="label">Total leads</div>
+        <div class="value" id="kpi-total-leads">&mdash;</div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">Closed / won leads</div>
+        <div class="value" id="kpi-closed-won">&mdash;</div>
+      </div>
+      <div class="kpi-card revenue">
+        <div class="label">Total revenue generated</div>
+        <div class="value" id="kpi-total-revenue">&mdash;</div>
+        <div class="subvalue">From leads marked "Lead Close"</div>
+      </div>
+    </div>
+
+    <div class="panel-grid">
+      <div class="panel">
+        <h2>Lead source-wise breakup</h2>
+        <table id="source-table">
+          <thead><tr><th>Source</th><th class="num">Leads</th><th>Share</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <h2>Connection type-wise breakup</h2>
+        <table id="connection-table">
+          <thead><tr><th>Type</th><th class="num">Leads</th><th class="num">Revenue</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <h2>Lead status breakup</h2>
+        <table id="status-table">
+          <thead><tr><th>Status</th><th class="num">Leads</th><th>Share</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <h2>Month-wise trend</h2>
+        <table id="month-table">
+          <thead><tr><th>Month</th><th class="num">Leads</th><th class="num">Revenue</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="panel full-width">
+        <h2>RM-wise breakup</h2>
+        <table id="rm-table">
+          <thead>
+            <tr>
+              <th>RM name</th><th class="num">Total leads</th><th class="num">Closed / won</th>
+              <th class="num">Interested</th><th class="num">Not interested</th><th class="num">Revenue</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="panel full-width">
+        <h2>Lead details</h2>
+        <div id="leads-table-wrap">
+          <table id="leads-table">
+            <thead>
+              <tr>
+                <th>Date</th><th>Source</th><th>Contact</th><th>Mobile</th>
+                <th>Connection</th><th>RM</th><th>Status</th>
+                <th class="num">Price</th><th class="num">Revenue</th><th>Close month</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+// =============================================================================
+// CONFIG
+// =============================================================================
+// Paste your Google Apps Script Web App URL here (see Code.gs install steps).
+// Looks like: https://script.google.com/macros/s/XXXXXXXXXXXX/exec
+var API_BASE = "";
+
+// Client-side password gate. NOTE: this is NOT secure — anyone who views
+// the page source can read this value. It only blocks casual/accidental
+// access, same as the Retention Team portal. Do not put this URL in front
+// of data that truly must stay private.
+var DASHBOARD_PASSWORD = "salescoord2026";
+
+// =============================================================================
+// STATE
+// =============================================================================
+var ALL_LEADS = [];
+var META = { rm_names: [], lead_sources: [], connection_types: [], status_categories: [] };
+
+var CATEGORY_ORDER = [
+  "Closed / Won", "Interested", "Not Interested", "No Response",
+  "Invalid Inquiry", "Out of Service Area", "Lost to Competitor",
+  "Duplicate", "Uncategorized"
+];
+
+// =============================================================================
+// LOGIN
+// =============================================================================
+document.getElementById('login-form').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var pwd = document.getElementById('password').value;
+  if (pwd === DASHBOARD_PASSWORD) {
+    sessionStorage.setItem('sc_logged_in', '1');
+    showDashboard();
+  } else {
+    document.getElementById('login-error').style.display = 'block';
+  }
+});
+
+function logout() {
+  sessionStorage.removeItem('sc_logged_in');
+  document.getElementById('dashboard-screen').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+function showDashboard() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('dashboard-screen').style.display = 'block';
+  loadAll();
+}
+
+// =============================================================================
+// DATA FETCH
+// =============================================================================
+function fmtINR(n) {
+  if (n === null || n === undefined || isNaN(n)) return '&mdash;';
+  return '\u20B9' + Math.round(n).toLocaleString('en-IN');
+}
+
+function statusClass(cat) {
+  return 'status-' + String(cat).replace(/[^a-zA-Z]+/g, '-');
+}
+
+async function fetchLeadData() {
+  if (!API_BASE) {
+    document.getElementById('loading-banner').style.display = 'block';
+    document.getElementById('loading-banner').textContent =
+      'No data source configured yet. Open this file and set API_BASE at the top of the script ' +
+      'to your Google Apps Script Web App URL.';
+    return;
+  }
+  document.getElementById('loading-banner').style.display = 'block';
+  document.getElementById('loading-banner').textContent = 'Loading data\u2026';
+  try {
+    var res = await fetch(API_BASE);
+    var data = await res.json();
+    ALL_LEADS = data.leads || [];
+    META.rm_names = data.rm_names || [];
+    META.lead_sources = data.lead_sources || [];
+    META.connection_types = data.connection_types || [];
+    META.status_categories = data.status_categories || [];
+    document.getElementById('loading-banner').style.display = 'none';
+    document.getElementById('refresh-status').textContent =
+      'Last refreshed: ' + new Date().toLocaleTimeString();
+  } catch (err) {
+    document.getElementById('loading-banner').style.display = 'block';
+    document.getElementById('loading-banner').textContent =
+      'Could not load data. Check that API_BASE is correct and the Apps Script is deployed with "Anyone" access.';
+    console.error(err);
+  }
+}
+
+// =============================================================================
+// FILTERS
+// =============================================================================
+function getFilteredLeads() {
+  var month = document.getElementById('f-month').value;
+  var rm = document.getElementById('f-rm').value;
+  var source = document.getElementById('f-source').value;
+  var conn = document.getElementById('f-connection').value;
+  var dateFrom = document.getElementById('f-date-from').value;
+  var dateTo = document.getElementById('f-date-to').value;
+
+  return ALL_LEADS.filter(function (lead) {
+    if (month && lead.lead_month !== month) return false;
+    if (rm && (lead.rm_names || []).indexOf(rm) === -1) return false;
+    if (source && lead.lead_source !== source) return false;
+    if (conn && lead.connection_type !== conn) return false;
+    if (dateFrom && lead.lead_date && lead.lead_date < dateFrom) return false;
+    if (dateTo && lead.lead_date && lead.lead_date > dateTo) return false;
+    return true;
+  });
+}
+
+function populateFilterOptions() {
+  var monthSel = document.getElementById('f-month');
+  var months = Array.from(new Set(ALL_LEADS.map(function (l) { return l.lead_month; })
+    .filter(Boolean))).sort();
+  months.forEach(function (m) {
+    var opt = document.createElement('option');
+    opt.value = m; opt.textContent = m;
+    monthSel.appendChild(opt);
+  });
+
+  var rmSel = document.getElementById('f-rm');
+  META.rm_names.forEach(function (rm) {
+    var opt = document.createElement('option');
+    opt.value = rm; opt.textContent = rm;
+    rmSel.appendChild(opt);
+  });
+
+  var sourceSel = document.getElementById('f-source');
+  META.lead_sources.forEach(function (s) {
+    var opt = document.createElement('option');
+    opt.value = s; opt.textContent = s;
+    sourceSel.appendChild(opt);
+  });
+
+  var connSel = document.getElementById('f-connection');
+  META.connection_types.forEach(function (c) {
+    var opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    connSel.appendChild(opt);
+  });
+}
+
+function clearFilters() {
+  document.getElementById('f-month').value = '';
+  document.getElementById('f-rm').value = '';
+  document.getElementById('f-source').value = '';
+  document.getElementById('f-connection').value = '';
+  document.getElementById('f-date-from').value = '';
+  document.getElementById('f-date-to').value = '';
+  renderAll();
+}
+
+// =============================================================================
+// RENDER: SUMMARY KPIs
+// =============================================================================
+function renderSummary(leads) {
+  var totalLeads = leads.length;
+  var closedWon = leads.filter(function (l) { return l.status_category === 'Closed / Won'; }).length;
+  var totalRevenue = leads.reduce(function (sum, l) { return sum + (l.revenue || 0); }, 0);
+
+  document.getElementById('kpi-total-leads').textContent = totalLeads.toLocaleString('en-IN');
+  document.getElementById('kpi-closed-won').textContent = closedWon.toLocaleString('en-IN');
+  document.getElementById('kpi-total-revenue').innerHTML = fmtINR(totalRevenue);
+}
+
+// =============================================================================
+// RENDER: LEAD SOURCE BREAKUP
+// =============================================================================
+function renderBySource(leads) {
+  var groups = {};
+  leads.forEach(function (l) {
+    var key = l.lead_source || '(Unknown Source)';
+    groups[key] = groups[key] || { leads: 0, revenue: 0 };
+    groups[key].leads++;
+    groups[key].revenue += (l.revenue || 0);
+  });
+  var rows = Object.keys(groups).map(function (k) {
+    return { source: k, leads: groups[k].leads, revenue: groups[k].revenue };
+  }).sort(function (a, b) { return b.leads - a.leads; });
+
+  var tbody = document.querySelector('#source-table tbody');
+  tbody.innerHTML = '';
+  if (rows.length === 0) { tbody.innerHTML = '<tr><td colspan="3" class="empty-note">No data</td></tr>'; return; }
+  var maxLeads = Math.max.apply(null, rows.map(function (r) { return r.leads; }));
+  rows.forEach(function (row) {
+    var pct = Math.round((row.leads / maxLeads) * 100);
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td>' + row.source + '</td>' +
+      '<td class="num">' + row.leads + '</td>' +
+      '<td><div class="bar-cell"><div class="bar-track"><div class="bar-fill" style="width:' + pct + '%"></div></div></div></td>';
+    tbody.appendChild(tr);
+  });
+}
+
+// =============================================================================
+// RENDER: CONNECTION TYPE BREAKUP
+// =============================================================================
+function renderByConnection(leads) {
+  var groups = {};
+  leads.forEach(function (l) {
+    var key = l.connection_type || 'OTHER';
+    groups[key] = groups[key] || { leads: 0, revenue: 0 };
+    groups[key].leads++;
+    groups[key].revenue += (l.revenue || 0);
+  });
+  var rows = Object.keys(groups).map(function (k) {
+    return { connection_type: k, leads: groups[k].leads, revenue: groups[k].revenue };
+  }).sort(function (a, b) { return b.leads - a.leads; });
+
+  var tbody = document.querySelector('#connection-table tbody');
+  tbody.innerHTML = '';
+  if (rows.length === 0) { tbody.innerHTML = '<tr><td colspan="3" class="empty-note">No data</td></tr>'; return; }
+  rows.forEach(function (row) {
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td>' + row.connection_type + '</td>' +
+      '<td class="num">' + row.leads + '</td>' +
+      '<td class="num">' + fmtINR(row.revenue) + '</td>';
+    tbody.appendChild(tr);
+  });
+}
+
+// =============================================================================
+// RENDER: STATUS BREAKUP
+// =============================================================================
+function renderByStatus(leads) {
+  var groups = {};
+  leads.forEach(function (l) {
+    var key = l.status_category || 'Uncategorized';
+    groups[key] = (groups[key] || 0) + 1;
+  });
+  var total = leads.length || 1;
+  var rows = CATEGORY_ORDER.filter(function (c) { return groups[c]; })
+    .map(function (c) { return { status_category: c, count: groups[c] }; });
+
+  var tbody = document.querySelector('#status-table tbody');
+  tbody.innerHTML = '';
+  if (rows.length === 0) { tbody.innerHTML = '<tr><td colspan="3" class="empty-note">No data</td></tr>'; return; }
+  rows.forEach(function (row) {
+    var pct = Math.round((row.count / total) * 100);
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><span class="status-pill ' + statusClass(row.status_category) + '">' + row.status_category + '</span></td>' +
+      '<td class="num">' + row.count + '</td>' +
+      '<td>' + pct + '%</td>';
+    tbody.appendChild(tr);
+  });
+}
+
+// =============================================================================
+// RENDER: MONTH-WISE TREND
+// =============================================================================
+function renderByMonth(leads) {
+  var groups = {};
+  leads.forEach(function (l) {
+    if (!l.lead_month) return;
+    groups[l.lead_month] = groups[l.lead_month] || { leads: 0, revenue: 0 };
+    groups[l.lead_month].leads++;
+    groups[l.lead_month].revenue += (l.revenue || 0);
+  });
+  var rows = Object.keys(groups).sort().map(function (m) {
+    return { month: m, leads: groups[m].leads, revenue: groups[m].revenue };
+  });
+
+  var tbody = document.querySelector('#month-table tbody');
+  tbody.innerHTML = '';
+  if (rows.length === 0) { tbody.innerHTML = '<tr><td colspan="3" class="empty-note">No data</td></tr>'; return; }
+  rows.forEach(function (row) {
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td>' + row.month + '</td>' +
+      '<td class="num">' + row.leads + '</td>' +
+      '<td class="num">' + fmtINR(row.revenue) + '</td>';
+    tbody.appendChild(tr);
+  });
+}
+
+// =============================================================================
+// RENDER: RM-WISE BREAKUP (a lead with 2 RMs counts once per RM)
+// =============================================================================
+function renderByRM(leads) {
+  var groups = {};
+  leads.forEach(function (l) {
+    (l.rm_names || []).forEach(function (rm) {
+      groups[rm] = groups[rm] || { total: 0, revenue: 0, closedWon: 0, interested: 0, notInterested: 0 };
+      groups[rm].total++;
+      groups[rm].revenue += (l.revenue || 0);
+      if (l.status_category === 'Closed / Won') groups[rm].closedWon++;
+      if (l.status_category === 'Interested') groups[rm].interested++;
+      if (l.status_category === 'Not Interested') groups[rm].notInterested++;
+    });
+  });
+  var rows = Object.keys(groups).map(function (rm) {
+    var g = groups[rm];
+    return {
+      rm_name: rm, total_leads: g.total, revenue: g.revenue,
+      closed_won: g.closedWon, interested: g.interested, not_interested: g.notInterested
+    };
+  }).sort(function (a, b) { return b.total_leads - a.total_leads; });
+
+  var tbody = document.querySelector('#rm-table tbody');
+  tbody.innerHTML = '';
+  if (rows.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="empty-note">No data</td></tr>'; return; }
+  rows.forEach(function (row) {
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td>' + row.rm_name + '</td>' +
+      '<td class="num">' + row.total_leads + '</td>' +
+      '<td class="num">' + row.closed_won + '</td>' +
+      '<td class="num">' + row.interested + '</td>' +
+      '<td class="num">' + row.not_interested + '</td>' +
+      '<td class="num">' + fmtINR(row.revenue) + '</td>';
+    tbody.appendChild(tr);
+  });
+}
+
+// =============================================================================
+// RENDER: LEAD DETAILS TABLE
+// =============================================================================
+function renderLeadsTable(leads) {
+  var tbody = document.querySelector('#leads-table tbody');
+  tbody.innerHTML = '';
+  var limited = leads.slice(0, 300);
+  if (limited.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="10" class="empty-note">No leads match the current filters</td></tr>';
+    return;
+  }
+  limited.forEach(function (l) {
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td>' + (l.lead_date || '') + '</td>' +
+      '<td>' + (l.lead_source || '') + '</td>' +
+      '<td>' + (l.contact_person || '') + '</td>' +
+      '<td>' + (l.mobile || '') + '</td>' +
+      '<td>' + (l.connection_type || '') + '</td>' +
+      '<td>' + ((l.rm_names || []).join(', ')) + '</td>' +
+      '<td><span class="status-pill ' + statusClass(l.status_category) + '">' + l.status_category + '</span></td>' +
+      '<td class="num">' + (l.price_numeric ? Math.round(l.price_numeric).toLocaleString('en-IN') : '') + '</td>' +
+      '<td class="num">' + (l.revenue ? fmtINR(l.revenue) : '') + '</td>' +
+      '<td>' + (l.close_month || '') + '</td>';
+    tbody.appendChild(tr);
+  });
+}
+
+// =============================================================================
+// RENDER ALL
+// =============================================================================
+function renderAll() {
+  var filtered = getFilteredLeads();
+  renderSummary(filtered);
+  renderBySource(filtered);
+  renderByConnection(filtered);
+  renderByStatus(filtered);
+  renderByMonth(filtered);
+  renderByRM(filtered);
+  renderLeadsTable(filtered);
+}
+
+async function loadAll() {
+  await fetchLeadData();
+  populateFilterOptions();
+  renderAll();
+}
+
+async function refreshData() {
+  ALL_LEADS = [];
+  document.querySelectorAll('.filter-group select').forEach(function (sel) {
+    // keep first ("All ...") option, drop the rest before repopulating
+    while (sel.options.length > 1) sel.remove(1);
+  });
+  await loadAll();
+}
+
+document.querySelectorAll('.filter-group select, .filter-group input').forEach(function (el) {
+  el.addEventListener('change', renderAll);
+});
+
+// =============================================================================
+// INIT — restore session if already logged in this browser tab
+// =============================================================================
+(function init() {
+  if (sessionStorage.getItem('sc_logged_in') === '1') {
+    showDashboard();
+  }
+})();
+</script>
+</body>
+</html>
