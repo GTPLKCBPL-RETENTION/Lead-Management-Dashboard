@@ -704,17 +704,28 @@ function renderSummary(leads) {
   document.getElementById('kpi-closed-won-breakdown').innerHTML =
     renderBreakdownHTML(connTypeCounts(closedLeads), false);
 
-  // --- Lead Funnel breakdown: by status (Feedback Pending / Under Discussion / Hold) ---
+  // --- Lead Funnel breakdown: by status (Feedback Pending / Under Discussion / Hold),
+  // plus a total Value (Price) and total Bandwidth (Mbps) across those pending
+  // leads. Blank Price / Speed cells in the sheet count as 0, so they simply
+  // don't add to the running total rather than being skipped or erroring out.
   var pendingByStatus = {};
+  var pendingTotalValue = 0;
+  var pendingTotalMbps = 0;
   feedbackPendingLeads.forEach(function (l) {
     var match = FEEDBACK_PENDING_STATUSES.filter(function (p) {
       return p.raw.trim().toLowerCase() === String(l.status_raw || '').trim().toLowerCase();
     })[0];
     var label = match ? match.label : 'Other';
     pendingByStatus[label] = (pendingByStatus[label] || 0) + 1;
+    pendingTotalValue += (l.price_numeric || 0);
+    if (typeof l.speed_mbps === 'number') pendingTotalMbps += l.speed_mbps;
   });
-  document.getElementById('kpi-feedback-pending-breakdown').innerHTML =
-    renderBreakdownHTML(pendingByStatus, false);
+  var pendingBreakdownHTML = Object.keys(pendingByStatus).length > 0
+    ? renderBreakdownHTML(pendingByStatus, false)
+    : '';
+  pendingBreakdownHTML += '<span>Value: ' + fmtINR(pendingTotalValue) + '</span>';
+  pendingBreakdownHTML += '<span>Bandwidth: ' + formatMbps_(pendingTotalMbps) + '</span>';
+  document.getElementById('kpi-feedback-pending-breakdown').innerHTML = pendingBreakdownHTML;
 
   document.getElementById('kpi-total-revenue-breakdown').innerHTML =
     renderBreakdownHTML(connTypeRevenue(closedLeads), true);
@@ -1146,7 +1157,7 @@ var AGENT_EDITABLE_COLUMNS = [
               "Jan'27", "Feb'27", "Mar'27", "Apr'27", "May'27", "Jun'27", "Jul'27", "Aug'27",
               "Sep'27", "Oct'27", "Nov'27", "Dec'27"] },
   { label: "Lead Status", header: "LEAD STATUS", type: "select", required: true,
-    options: ["Lead Close", "Interested in Home Connection", "Not Interested/ Not Required",
+    options: ["New Lead", "Repeat call required", "Lead Close", "Interested in Home Connection", "Not Interested/ Not Required",
               "Existing BB", "Lead Lost to Competitor", "The customer raised the inquiry incorrectly",
               "Invalid / Incorrect Mobile Number", "Call disconnected / No Response; 3 retries failed.",
               "Out of Service Area (Outside West Bengal)", "Out of Service Area in West Bengal",
