@@ -389,12 +389,6 @@
     </div>
 
     <div id="tab-source" class="tab-panel">
-      <div class="details-filter-bar">
-        <div class="filter-group">
-          <label for="source-filter-month">Month</label>
-          <select id="source-filter-month"><option value="">All months</option></select>
-        </div>
-      </div>
       <div class="panel-grid">
         <div class="panel">
           <h2>Lead status breakup</h2>
@@ -1090,19 +1084,9 @@ function populateDetailsFilterOptions() {
     statusSel.appendChild(opt);
   });
 
-  // Month dropdowns — distinct lead_month values across all leads,
+  // Month dropdown — distinct lead_month values across all leads,
   // sorted chronologically, shown with a readable label (e.g. "July 2025").
-  populateMonthDropdown_('d-filter-month');
-  populateMonthDropdown_('source-filter-month');
-}
-
-// Fills a <select> (identified by id) with "All months" plus one option per
-// distinct lead_month found across ALL_LEADS, sorted chronologically.
-// Preserves the previously selected value across data refreshes, if it
-// still exists in the new option list.
-function populateMonthDropdown_(selectId) {
-  var monthSel = document.getElementById(selectId);
-  if (!monthSel) return;
+  var monthSel = document.getElementById('d-filter-month');
   var previousMonthValue = monthSel.value;
   while (monthSel.options.length > 1) monthSel.remove(1);
   var monthSet = {};
@@ -1114,6 +1098,7 @@ function populateMonthDropdown_(selectId) {
     opt.value = m; opt.textContent = formatMonthLabel_(m);
     monthSel.appendChild(opt);
   });
+  // Preserve the previously selected month across data refreshes, if it still exists.
   if (previousMonthValue && monthSet[previousMonthValue]) {
     monthSel.value = previousMonthValue;
   }
@@ -1129,24 +1114,13 @@ function clearDetailsFilters() {
 // =============================================================================
 // RENDER ALL
 // =============================================================================
-// Leads for the "Lead Status & Month-wise Trend" tab only — filtered by
-// its own Month dropdown (All months, or one specific month by lead_month).
-// Every other tab/panel keeps showing the full dataset regardless of this.
-function getSourceTabFilteredLeads() {
-  var monthSel = document.getElementById('source-filter-month');
-  var monthFilter = monthSel ? monthSel.value : '';
-  if (!monthFilter) return ALL_LEADS;
-  return ALL_LEADS.filter(function (l) { return l.lead_month === monthFilter; });
-}
-
 function renderAll() {
   var filtered = getFilteredLeads();
   renderSummary(filtered);
   renderBySource(filtered);
   renderByConnection(filtered);
-  var sourceTabLeads = getSourceTabFilteredLeads();
-  renderByStatus(sourceTabLeads);
-  renderByMonth(sourceTabLeads);
+  renderByStatus(filtered);
+  renderByMonth(filtered);
   renderByRM(filtered);
   renderLeadsTable(filtered);
 }
@@ -1176,7 +1150,6 @@ async function refreshData() {
 document.getElementById('d-filter-rm').addEventListener('change', renderAll);
 document.getElementById('d-filter-status').addEventListener('change', renderAll);
 document.getElementById('d-filter-month').addEventListener('change', renderAll);
-document.getElementById('source-filter-month').addEventListener('change', renderAll);
 
 // =============================================================================
 // AGENT UPDATE TAB
