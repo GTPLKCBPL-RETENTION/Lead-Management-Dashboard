@@ -424,13 +424,17 @@
               <label for="d-filter-status">Lead status</label>
               <select id="d-filter-status"><option value="">All statuses</option></select>
             </div>
+            <div class="filter-group">
+              <label for="d-filter-month">Month</label>
+              <select id="d-filter-month"><option value="">All months</option></select>
+            </div>
             <button class="clear-btn" onclick="clearDetailsFilters()">Clear filters</button>
           </div>
           <div id="leads-table-wrap">
             <table id="leads-table">
               <thead>
                 <tr>
-                  <th>Date</th><th>Source</th><th>Contact</th><th>Mobile</th>
+                  <th>Date</th><th>Source</th><th>Company Name</th><th>Contact</th><th>Mobile</th>
                   <th>Connection</th><th>RM</th><th>Status</th>
                   <th class="num">Price</th><th class="num">Revenue</th><th>Close month</th>
                   <th>RM Remarks</th>
@@ -1011,10 +1015,12 @@ function renderByRM(leads) {
 function renderLeadsTable(leads) {
   var rmFilter = document.getElementById('d-filter-rm').value;
   var statusFilter = document.getElementById('d-filter-status').value;
+  var monthFilter = document.getElementById('d-filter-month').value;
 
   var visibleLeads = leads.filter(function (l) {
     if (rmFilter && (l.rm_names || []).indexOf(rmFilter) === -1) return false;
     if (statusFilter && String(l.status_raw || '').trim().toLowerCase() !== statusFilter.trim().toLowerCase()) return false;
+    if (monthFilter && l.lead_month !== monthFilter) return false;
     return true;
   });
 
@@ -1022,7 +1028,7 @@ function renderLeadsTable(leads) {
   tbody.innerHTML = '';
   var limited = visibleLeads.slice(0, 300);
   if (limited.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="11" class="empty-note">No leads found</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" class="empty-note">No leads found</td></tr>';
     return;
   }
   limited.forEach(function (l) {
@@ -1030,6 +1036,7 @@ function renderLeadsTable(leads) {
     tr.innerHTML =
       '<td>' + (l.lead_date || '') + '</td>' +
       '<td>' + (l.lead_source || '') + '</td>' +
+      '<td>' + (l.company || '') + '</td>' +
       '<td>' + (l.contact_person || '') + '</td>' +
       '<td>' + (l.mobile || '') + '</td>' +
       '<td>' + (l.connection_type || '') + '</td>' +
@@ -1043,7 +1050,7 @@ function renderLeadsTable(leads) {
   });
 }
 
-// Populates the RM / Lead Status dropdowns for the Lead Details tab.
+// Populates the RM / Lead Status / Month dropdowns for the Lead Details tab.
 function populateDetailsFilterOptions() {
   var rmSel = document.getElementById('d-filter-rm');
   while (rmSel.options.length > 1) rmSel.remove(1);
@@ -1076,11 +1083,31 @@ function populateDetailsFilterOptions() {
     opt.value = s; opt.textContent = s;
     statusSel.appendChild(opt);
   });
+
+  // Month dropdown — distinct lead_month values across all leads,
+  // sorted chronologically, shown with a readable label (e.g. "July 2025").
+  var monthSel = document.getElementById('d-filter-month');
+  var previousMonthValue = monthSel.value;
+  while (monthSel.options.length > 1) monthSel.remove(1);
+  var monthSet = {};
+  ALL_LEADS.forEach(function (l) {
+    if (l.lead_month) monthSet[l.lead_month] = true;
+  });
+  Object.keys(monthSet).sort().forEach(function (m) {
+    var opt = document.createElement('option');
+    opt.value = m; opt.textContent = formatMonthLabel_(m);
+    monthSel.appendChild(opt);
+  });
+  // Preserve the previously selected month across data refreshes, if it still exists.
+  if (previousMonthValue && monthSet[previousMonthValue]) {
+    monthSel.value = previousMonthValue;
+  }
 }
 
 function clearDetailsFilters() {
   document.getElementById('d-filter-rm').value = '';
   document.getElementById('d-filter-status').value = '';
+  document.getElementById('d-filter-month').value = '';
   renderAll();
 }
 
@@ -1122,6 +1149,7 @@ async function refreshData() {
 
 document.getElementById('d-filter-rm').addEventListener('change', renderAll);
 document.getElementById('d-filter-status').addEventListener('change', renderAll);
+document.getElementById('d-filter-month').addEventListener('change', renderAll);
 
 // =============================================================================
 // AGENT UPDATE TAB
