@@ -257,6 +257,15 @@
     background: #fff8e6; border: 1px solid #f0d896; color: #8a6a1a;
     padding: 10px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 20px;
   }
+  .loading-banner-text { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .loading-banner-pct { font-weight: 700; }
+  .loading-progress-track {
+    background: #f4e5b4; border-radius: 6px; height: 6px; overflow: hidden;
+  }
+  .loading-progress-fill {
+    height: 100%; background: var(--amber); border-radius: 6px;
+    width: 0%; transition: width 0.25s ease;
+  }
   #dashboard-screen { display: none; }
 
   /* ---- Tabs ---- */
@@ -315,7 +324,13 @@
   </header>
 
   <main>
-    <div id="loading-banner" class="loading-banner" style="display:none;">Loading data&hellip;</div>
+    <div id="loading-banner" class="loading-banner" style="display:none;">
+      <div class="loading-banner-text">
+        <span id="loading-banner-msg">Loading data&hellip;</span>
+        <span class="loading-banner-pct" id="loading-banner-pct">0%</span>
+      </div>
+      <div class="loading-progress-track"><div class="loading-progress-fill" id="loading-progress-fill"></div></div>
+    </div>
 
     <div class="kpi-row">
       <div class="kpi-card">
@@ -379,7 +394,7 @@
                 <th>RM name</th><th class="num">Total leads</th><th class="num">Closed / won</th>
                 <th>Closed by connection type</th>
                 <th>Feedback pending</th>
-                <th>Pending value / bandwidth</th>
+                <th>Lead Funnel value &amp; bandwidth</th>
                 <th class="num">Revenue<br><span style="font-weight:400; font-size:10px; color:var(--grey);">From leads marked "Lead Close"</span></th>
               </tr>
             </thead>
@@ -614,16 +629,66 @@ function statusClass(cat) {
   return 'status-' + String(cat).replace(/[^a-zA-Z]+/g, '-');
 }
 
+// Drives the loading banner's progress bar. Since a plain fetch() gives no
+// real byte-level progress for this API, we simulate a smooth climb that
+// eases up towards 90% while waiting and only completes to 100% once the
+// response actually arrives — enough to feel alive without lying that the
+// load is done before it is.
+var loadingProgressTimer_ = null;
+function loadingBannerShow_(message) {
+  var banner = document.getElementById('loading-banner');
+  var msgEl = document.getElementById('loading-banner-msg');
+  var pctEl = document.getElementById('loading-banner-pct');
+  var fillEl = document.getElementById('loading-progress-fill');
+  banner.style.display = 'block';
+  msgEl.textContent = message;
+  pctEl.style.display = '';
+  fillEl.style.display = '';
+
+  var pct = 0;
+  fillEl.style.width = '0%';
+  pctEl.textContent = '0%';
+  if (loadingProgressTimer_) clearInterval(loadingProgressTimer_);
+  loadingProgressTimer_ = setInterval(function () {
+    // Slow down as it approaches 90%, never reaching 100% on its own.
+    var remaining = 90 - pct;
+    pct += Math.max(0.5, remaining * 0.12);
+    if (pct > 90) pct = 90;
+    fillEl.style.width = pct + '%';
+    pctEl.textContent = Math.round(pct) + '%';
+  }, 150);
+}
+function loadingBannerComplete_() {
+  if (loadingProgressTimer_) { clearInterval(loadingProgressTimer_); loadingProgressTimer_ = null; }
+  var fillEl = document.getElementById('loading-progress-fill');
+  var pctEl = document.getElementById('loading-banner-pct');
+  fillEl.style.width = '100%';
+  pctEl.textContent = '100%';
+  setTimeout(function () {
+    document.getElementById('loading-banner').style.display = 'none';
+  }, 250);
+}
+function loadingBannerError_(message) {
+  if (loadingProgressTimer_) { clearInterval(loadingProgressTimer_); loadingProgressTimer_ = null; }
+  var banner = document.getElementById('loading-banner');
+  var msgEl = document.getElementById('loading-banner-msg');
+  var pctEl = document.getElementById('loading-banner-pct');
+  var fillEl = document.getElementById('loading-progress-fill');
+  banner.style.display = 'block';
+  msgEl.textContent = message;
+  pctEl.style.display = 'none';
+  fillEl.style.display = 'none';
+}
+
 async function fetchLeadData() {
   if (!API_BASE) {
-    document.getElementById('loading-banner').style.display = 'block';
-    document.getElementById('loading-banner').textContent =
+    loadingBannerError_(
       'No data source configured yet. Open this file and set API_BASE at the top of the script ' +
-      'to your Google Apps Script Web App URL.';
+      'to your Google Apps Script Web App URL.'
+    );
     return;
   }
-  document.getElementById('loading-banner').style.display = 'block';
-  document.getElementById('loading-banner').textContent = 'Loading data\u2026';
+  loadingBannerShow_('Loading data\u2026');
   try {
     var res = await fetch(API_BASE);
     var data = await res.json();
@@ -632,13 +697,13 @@ async function fetchLeadData() {
     META.lead_sources = data.lead_sources || [];
     META.connection_types = data.connection_types || [];
     META.status_categories = data.status_categories || [];
-    document.getElementById('loading-banner').style.display = 'none';
+    loadingBannerComplete_();
     document.getElementById('refresh-status').textContent =
       'Last refreshed: ' + new Date().toLocaleTimeString();
   } catch (err) {
-    document.getElementById('loading-banner').style.display = 'block';
-    document.getElementById('loading-banner').textContent =
-      'Could not load data. Check that API_BASE is correct and the Apps Script is deployed with "Anyone" access.';
+    loadingBannerError_(
+      'Could not load data. Check that API_BASE is correct and the Apps Script is deployed with "Anyone" access.'
+    );
     console.error(err);
   }
 }
