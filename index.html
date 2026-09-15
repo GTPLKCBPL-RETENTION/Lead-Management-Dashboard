@@ -379,6 +379,7 @@
                 <th>RM name</th><th class="num">Total leads</th><th class="num">Closed / won</th>
                 <th>Closed by connection type</th>
                 <th>Feedback pending</th>
+                <th>Pending value / bandwidth</th>
                 <th class="num">Revenue<br><span style="font-weight:400; font-size:10px; color:var(--grey);">From leads marked "Lead Close"</span></th>
               </tr>
             </thead>
@@ -947,7 +948,8 @@ function renderByRM(leads) {
     (l.rm_names || []).forEach(function (rm) {
       groups[rm] = groups[rm] || {
         total: 0, revenue: 0, closedWon: 0, interested: 0, notInterested: 0,
-        closedByConnType: {}, feedbackPendingByStatus: {}
+        closedByConnType: {}, feedbackPendingByStatus: {},
+        feedbackPendingValue: 0, feedbackPendingMbps: 0
       };
       groups[rm].total++;
       groups[rm].revenue += (l.revenue || 0);
@@ -965,6 +967,8 @@ function renderByRM(leads) {
       if (pendingMatch) {
         groups[rm].feedbackPendingByStatus[pendingMatch.label] =
           (groups[rm].feedbackPendingByStatus[pendingMatch.label] || 0) + 1;
+        groups[rm].feedbackPendingValue += (l.price_numeric || 0);
+        if (typeof l.speed_mbps === 'number') groups[rm].feedbackPendingMbps += l.speed_mbps;
       }
     });
   });
@@ -974,13 +978,15 @@ function renderByRM(leads) {
       rm_name: rm, total_leads: g.total, revenue: g.revenue,
       closed_won: g.closedWon, interested: g.interested, not_interested: g.notInterested,
       closed_by_conn_type: g.closedByConnType,
-      feedback_pending_by_status: g.feedbackPendingByStatus
+      feedback_pending_by_status: g.feedbackPendingByStatus,
+      feedback_pending_value: g.feedbackPendingValue,
+      feedback_pending_mbps: g.feedbackPendingMbps
     };
   }).sort(function (a, b) { return b.total_leads - a.total_leads; });
 
   var tbody = document.querySelector('#rm-table tbody');
   tbody.innerHTML = '';
-  if (rows.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="empty-note">No data</td></tr>'; return; }
+  if (rows.length === 0) { tbody.innerHTML = '<tr><td colspan="7" class="empty-note">No data</td></tr>'; return; }
   rows.forEach(function (row) {
     var connBreakdown = Object.keys(row.closed_by_conn_type)
       .sort()
@@ -992,6 +998,9 @@ function renderByRM(leads) {
     var pendingText = pendingTotal > 0
       ? pendingTotal + ' (' + pendingEntries.map(function (k) { return k + ': ' + row.feedback_pending_by_status[k]; }).join(', ') + ')'
       : '&mdash;';
+    var pendingValueText = pendingTotal > 0
+      ? '<span class="kpi-breakdown-pill">Value: ' + fmtINR(row.feedback_pending_value) + '</span><br><span class="kpi-breakdown-pill" style="margin-top:4px;display:inline-block;">Bandwidth: ' + formatMbps_(row.feedback_pending_mbps) + '</span>'
+      : '&mdash;';
 
     var tr = document.createElement('tr');
     tr.innerHTML =
@@ -1000,6 +1009,7 @@ function renderByRM(leads) {
       '<td class="num">' + row.closed_won + '</td>' +
       '<td style="font-size:12px;color:var(--grey)">' + connBreakdown + '</td>' +
       '<td style="font-size:12px;color:var(--grey)">' + pendingText + '</td>' +
+      '<td style="font-size:13px">' + pendingValueText + '</td>' +
       '<td class="num">' + fmtINR(row.revenue) + '</td>';
     tbody.appendChild(tr);
   });
