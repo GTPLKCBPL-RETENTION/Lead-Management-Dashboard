@@ -13,8 +13,15 @@
     --blue: #2A5DB0;
     --teal: #12946E;
     --amber: #B4791E;
+    --violet: #7C3AED;
     --red: #C0392B;
     --grey: #64708A;
+
+    /* connection-type accent colors */
+    --ct-corp: #2A5DB0; --ct-corp-bg: #E7EEFC;
+    --ct-ill: #12946E;  --ct-ill-bg: #E1F5EF;
+    --ct-p2p: #7C3AED;  --ct-p2p-bg: #F1E9FE;
+    --ct-other: #64708A; --ct-other-bg: #EEF0F5;
     --bg: #F3F5F9;
     --card: #ffffff;
     --border: #E2E6EF;
@@ -250,6 +257,20 @@
   .kpi-card .value { font-size: 28px; font-weight: 700; color: var(--navy); }
   .kpi-card.revenue { border-left-color: var(--teal); }
   .kpi-card.revenue .value { color: var(--teal); }
+  .kpi-card.closed { border-left-color: var(--teal); }
+  .kpi-card.closed .value { color: var(--teal); }
+
+  /* connection-type badges — used in KPI breakdowns, connection table, RM table */
+  .ctype-badge {
+    display: inline-block; font-weight: 700; padding: 2px 8px; border-radius: 5px;
+  }
+  .ctype-corp   { color: var(--ct-corp);  background: var(--ct-corp-bg); }
+  .ctype-ill    { color: var(--ct-ill);   background: var(--ct-ill-bg); }
+  .ctype-p2p    { color: var(--ct-p2p);   background: var(--ct-p2p-bg); }
+  .ctype-other  { color: var(--ct-other); background: var(--ct-other-bg); }
+
+  /* closed / won values shown in green across tables */
+  .closed-value { color: var(--teal); font-weight: 700; }
   .kpi-card .subvalue { font-size: 12px; color: var(--grey); margin-top: 4px; }
   .kpi-breakdown {
     margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border);
@@ -396,7 +417,7 @@
             <div class="value" id="kpi-total-leads">&mdash;</div>
             <div class="kpi-breakdown" id="kpi-total-leads-breakdown"></div>
           </div>
-          <div class="kpi-card">
+          <div class="kpi-card closed">
             <div class="label">Closed / won leads</div>
             <div class="value" id="kpi-closed-won">&mdash;</div>
             <div class="kpi-breakdown" id="kpi-closed-won-breakdown"></div>
@@ -681,6 +702,17 @@ function statusClass(cat) {
   return 'status-' + String(cat).replace(/[^a-zA-Z]+/g, '-');
 }
 
+// Maps a connection-type string (CORPORATE BB / ILL / P2P / anything
+// else) to its badge color class, used consistently in the KPI
+// breakdowns, the connection-type table, and the RM-wise table.
+function ctypeClass_(ct) {
+  var key = String(ct || '').trim().toUpperCase();
+  if (key === 'CORPORATE BB') return 'ctype-corp';
+  if (key === 'ILL') return 'ctype-ill';
+  if (key === 'P2P') return 'ctype-p2p';
+  return 'ctype-other';
+}
+
 // Drives the loading banner's progress bar. Since a plain fetch() gives no
 // real byte-level progress for this API, we simulate a smooth climb that
 // eases up towards 90% while waiting and only completes to 100% once the
@@ -808,19 +840,20 @@ function renderSummary(leads) {
     });
     return rev;
   }
-  function renderBreakdownHTML(dict, isRevenue) {
+  function renderBreakdownHTML(dict, isRevenue, colorByType) {
     var keys = Object.keys(dict).sort();
     if (keys.length === 0) return '&mdash;';
     return keys.map(function (k) {
       var val = isRevenue ? fmtINR(dict[k]) : dict[k];
-      return '<span>' + k + ': ' + val + '</span>';
+      var cls = colorByType ? (ctypeClass_(k) + ' ctype-badge') : '';
+      return '<span class="' + cls + '">' + k + ': ' + val + '</span>';
     }).join('');
   }
 
   document.getElementById('kpi-total-leads-breakdown').innerHTML =
-    renderBreakdownHTML(connTypeCounts(leads), false);
+    renderBreakdownHTML(connTypeCounts(leads), false, true);
   document.getElementById('kpi-closed-won-breakdown').innerHTML =
-    renderBreakdownHTML(connTypeCounts(closedLeads), false);
+    renderBreakdownHTML(connTypeCounts(closedLeads), false, true);
 
   // --- Lead Funnel breakdown: by status (Feedback Pending / Under Discussion / Hold),
   // plus a total Value (Price) and total Bandwidth (Mbps) across those pending
@@ -846,7 +879,7 @@ function renderSummary(leads) {
   document.getElementById('kpi-feedback-pending-breakdown').innerHTML = pendingBreakdownHTML;
 
   document.getElementById('kpi-total-revenue-breakdown').innerHTML =
-    renderBreakdownHTML(connTypeRevenue(closedLeads), true);
+    renderBreakdownHTML(connTypeRevenue(closedLeads), true, true);
 }
 
 // =============================================================================
@@ -878,7 +911,7 @@ function renderBySource(leads) {
     tr.innerHTML =
       '<td>' + row.source + '</td>' +
       '<td class="num">' + row.leads + '</td>' +
-      '<td class="num">' + row.closed_count + '</td>' +
+      '<td class="num"><span class="closed-value">' + row.closed_count + '</span></td>' +
       '<td class="num">' + fmtINR(row.revenue) + '</td>' +
       '<td><div class="bar-cell"><div class="bar-track"><div class="bar-fill" style="width:' + pct + '%"></div></div></div></td>';
     tbody.appendChild(tr);
@@ -919,7 +952,7 @@ function renderByConnection(leads) {
       : '&mdash;';
     var tr = document.createElement('tr');
     tr.innerHTML =
-      '<td>' + row.connection_type + '</td>' +
+      '<td><span class="ctype-badge ' + ctypeClass_(row.connection_type) + '">' + row.connection_type + '</span></td>' +
       '<td class="num">' + row.leads + '</td>' +
       '<td class="num">' + fmtINR(row.revenue) + '</td>' +
       '<td style="font-size:13px">' + totalText + '</td>';
@@ -1042,15 +1075,15 @@ function renderByMonth(leads) {
   if (allMonths.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="empty-note">No data</td></tr>'; return; }
   allMonths.forEach(function (m) {
     var connBreakdown = connTypeByCloseMonth[m]
-      ? Object.keys(connTypeByCloseMonth[m]).sort().map(function (ct) { return ct + ': ' + connTypeByCloseMonth[m][ct]; }).join(', ')
+      ? Object.keys(connTypeByCloseMonth[m]).sort().map(function (ct) { return '<span class="ctype-badge ' + ctypeClass_(ct) + '">' + ct + ': ' + connTypeByCloseMonth[m][ct] + '</span>'; }).join(' ')
       : '&mdash;';
     var tr = document.createElement('tr');
     tr.innerHTML =
       '<td>' + formatMonthLabel_(m) + '</td>' +
       '<td class="num">' + (leadCounts[m] || 0) + '</td>' +
       '<td class="num">' + (validLeadCounts[m] || 0) + '</td>' +
-      '<td class="num">' + (closedByCloseMonth[m] || 0) + '</td>' +
-      '<td style="font-size:12px;color:var(--grey)">' + connBreakdown + '</td>' +
+      '<td class="num"><span class="closed-value">' + (closedByCloseMonth[m] || 0) + '</span></td>' +
+      '<td style="font-size:12px;">' + connBreakdown + '</td>' +
       '<td class="num">' + fmtINR(revenueByCloseMonth[m] || 0) + '</td>';
     tbody.appendChild(tr);
   });
@@ -1107,8 +1140,8 @@ function renderByRM(leads) {
   rows.forEach(function (row) {
     var connBreakdown = Object.keys(row.closed_by_conn_type)
       .sort()
-      .map(function (ct) { return ct + ': ' + row.closed_by_conn_type[ct]; })
-      .join(', ') || '&mdash;';
+      .map(function (ct) { return '<span class="ctype-badge ' + ctypeClass_(ct) + '">' + ct + ': ' + row.closed_by_conn_type[ct] + '</span>'; })
+      .join(' ') || '&mdash;';
 
     var pendingEntries = Object.keys(row.feedback_pending_by_status);
     var pendingTotal = pendingEntries.reduce(function (sum, k) { return sum + row.feedback_pending_by_status[k]; }, 0);
@@ -1123,8 +1156,8 @@ function renderByRM(leads) {
     tr.innerHTML =
       '<td>' + row.rm_name + '</td>' +
       '<td class="num">' + row.total_leads + '</td>' +
-      '<td class="num">' + row.closed_won + '</td>' +
-      '<td style="font-size:12px;color:var(--grey)">' + connBreakdown + '</td>' +
+      '<td class="num"><span class="closed-value">' + row.closed_won + '</span></td>' +
+      '<td style="font-size:12px;">' + connBreakdown + '</td>' +
       '<td style="font-size:12px;color:var(--grey)">' + pendingText + '</td>' +
       '<td style="font-size:13px">' + pendingValueText + '</td>' +
       '<td class="num">' + fmtINR(row.revenue) + '</td>';
@@ -1160,7 +1193,7 @@ function renderLeadsTable(leads) {
       '<td>' + (l.company || '') + '</td>' +
       '<td>' + (l.contact_person || '') + '</td>' +
       '<td>' + (l.mobile || '') + '</td>' +
-      '<td>' + (l.connection_type || '') + '</td>' +
+      '<td><span class="ctype-badge ' + ctypeClass_(l.connection_type) + '">' + (l.connection_type || '') + '</span></td>' +
       '<td>' + ((l.rm_names || []).join(', ')) + '</td>' +
       '<td><span class="status-pill ' + statusClass(l.status_category) + '">' + (l.status_raw || l.status_category) + '</span></td>' +
       '<td class="num">' + (l.price_numeric ? Math.round(l.price_numeric).toLocaleString('en-IN') : '') + '</td>' +
