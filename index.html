@@ -6,16 +6,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root {
-    --navy: #0f2942;
-    --blue: #1e5a8e;
-    --teal: #2f9e6f;
-    --amber: #d9922f;
-    --red: #c0453a;
-    --grey: #667a8c;
-    --bg: #eef2f6;
+    /* ---- Professional palette (kept the same variable names the rest
+       of the stylesheet already relies on, so nothing below breaks) ---- */
+    --navy: #0F1B33;
+    --navy-2: #17284A;
+    --blue: #2A5DB0;
+    --teal: #12946E;
+    --amber: #B4791E;
+    --red: #C0392B;
+    --grey: #64708A;
+    --bg: #F3F5F9;
     --card: #ffffff;
-    --border: #dbe3ea;
-    --text: #1b2a38;
+    --border: #E2E6EF;
+    --text: #16202E;
+
+    --sidebar-text: #B9C2DC;
+    --sidebar-active: rgba(255,255,255,.09);
   }
   * { box-sizing: border-box; }
   body { margin:0; font-family:'Segoe UI',Arial,sans-serif; background:var(--bg); color:var(--text); }
@@ -24,10 +30,10 @@
   #login-screen {
     min-height: 100vh;
     display: flex; align-items: center; justify-content: center;
-    background: linear-gradient(135deg, var(--navy), var(--blue));
+    background: linear-gradient(135deg, var(--navy), var(--navy-2));
   }
   #login-screen .card {
-    background: #fff; padding: 40px 36px; border-radius: 12px;
+    background: #fff; padding: 40px 36px; border-radius: 14px;
     box-shadow: 0 20px 60px rgba(0,0,0,0.25); width: 100%; max-width: 380px;
   }
   #login-screen h1 { font-size: 20px; color: var(--navy); margin: 0 0 4px; }
@@ -47,20 +53,60 @@
     font-size: 13px; margin-bottom: 16px; display: none;
   }
 
-  /* ---- Header ---- */
-  header {
-    background: var(--navy); color: #fff; padding: 14px 28px;
-    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+  /* ---- App shell: sidebar + main column ---- */
+  #dashboard-screen { display: none; }
+  .app-shell { display: flex; min-height: 100vh; align-items: stretch; }
+
+  .sidebar {
+    width: 246px; flex-shrink: 0;
+    background: linear-gradient(180deg, var(--navy), var(--navy-2));
+    color: var(--sidebar-text);
+    display: flex; flex-direction: column;
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    padding: 20px 14px;
   }
-  header h1 { font-size: 18px; margin: 0; font-weight: 600; }
-  header .sub { font-size: 12px; color: #b7c6d4; margin-top: 2px; }
-  header .actions { display: flex; gap: 10px; align-items: center; }
-  header button {
-    background: var(--blue); color: #fff; border: none; padding: 8px 14px;
-    border-radius: 6px; font-size: 13px; cursor: pointer;
+  .sidebar-brand { display: flex; align-items: center; gap: 12px; padding: 4px 10px 22px; }
+  .sidebar-brand img { height: 34px; width: auto; border-radius: 6px; flex-shrink: 0; background:#fff; padding:2px; }
+  .sidebar-title { color: #fff; font-size: 14px; font-weight: 700; line-height: 1.3; }
+  .sidebar-sub { font-size: 11.5px; color: #8B94B8; }
+
+  .sidebar-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em; color: #6B759C; padding: 0 10px; margin: 6px 0 6px; }
+
+  .sidebar-nav { display: flex; flex-direction: column; gap: 2px; }
+  .sidebar-nav .tab-btn {
+    display: flex; align-items: center; gap: 10px;
+    background: transparent; border: none; text-align: left; width: 100%;
+    padding: 10px 12px; border-radius: 8px;
+    font-size: 13.5px; font-weight: 600; color: var(--sidebar-text); cursor: pointer;
   }
-  header button:hover { background: #16456e; }
-  #refresh-status { font-size: 11px; color: #9fb3c4; }
+  .sidebar-nav .tab-btn::before {
+    content: ""; width: 6px; height: 6px; border-radius: 50%; background: #4A5578; flex-shrink: 0;
+  }
+  .sidebar-nav .tab-btn:hover { background: rgba(255,255,255,.05); color: #fff; }
+  .sidebar-nav .tab-btn.active { background: var(--sidebar-active); color: #fff; }
+  .sidebar-nav .tab-btn.active::before { background: #6E9CE8; }
+
+  .sidebar-foot { margin-top: auto; padding: 14px 10px 4px; border-top: 1px solid rgba(255,255,255,.08); font-size: 11px; color: #7B85AA; }
+
+  .main-col { flex: 1; min-width: 0; }
+
+  /* ---- Top bar (was <header>) ---- */
+  .topbar {
+    background: var(--card); border-bottom: 1px solid var(--border);
+    padding: 16px 28px; display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px; position: sticky; top: 0; z-index: 5;
+  }
+  .topbar h1 { font-size: 18px; margin: 0; font-weight: 700; color: var(--navy); }
+  .topbar .sub { font-size: 12px; color: var(--grey); margin-top: 2px; }
+  .topbar .actions { display: flex; gap: 10px; align-items: center; }
+  .topbar button {
+    background: var(--blue); color: #fff; border: none; padding: 9px 16px;
+    border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .topbar button:hover { background: var(--navy); }
+  .topbar button + button { background: var(--card); color: var(--grey); border: 1px solid var(--border); }
+  .topbar button + button:hover { background: var(--bg); color: var(--navy); }
+  #refresh-status { font-size: 11.5px; color: var(--grey); margin-right: 4px; white-space: nowrap; }
 
   /* ---- Details tab filters ---- */
   .details-filter-bar {
@@ -141,7 +187,7 @@
   /* ---- Modal (duplicate mobile warning) ---- */
   .modal-overlay {
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(15,41,66,0.55);
+    background: rgba(15,27,51,0.55);
     display: flex; align-items: center; justify-content: center;
     z-index: 1000;
   }
@@ -195,13 +241,14 @@
     padding: 8px 12px; border-bottom: 1px solid #eef1f4; font-size: 13px;
   }
 
-  /* ---- Main layout ---- */
+  /* ---- Main content ---- */
   main { padding: 24px 28px 60px; max-width: 1400px; margin: 0 auto; }
 
-  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 16px; margin-bottom: 24px; }
-  .kpi-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
+  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap: 16px; margin-bottom: 24px; }
+  .kpi-card { background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--blue); border-radius: 10px; padding: 18px 20px; }
   .kpi-card .label { font-size: 12px; color: var(--grey); font-weight: 600; margin-bottom: 6px; }
   .kpi-card .value { font-size: 28px; font-weight: 700; color: var(--navy); }
+  .kpi-card.revenue { border-left-color: var(--teal); }
   .kpi-card.revenue .value { color: var(--teal); }
   .kpi-card .subvalue { font-size: 12px; color: var(--grey); margin-top: 4px; }
   .kpi-breakdown {
@@ -210,12 +257,12 @@
   }
   .kpi-breakdown span {
     display: inline-block; margin-right: 6px; margin-bottom: 4px; white-space: nowrap;
-    background: #fff3b0; color: var(--navy); font-weight: 700;
+    background: #EFF3FA; color: var(--navy); font-weight: 700;
     padding: 2px 8px; border-radius: 5px;
   }
   .kpi-breakdown-pill {
     display: inline-block; white-space: nowrap;
-    background: #fff3b0; color: var(--navy); font-weight: 700;
+    background: #EFF3FA; color: var(--navy); font-weight: 700;
     padding: 2px 8px; border-radius: 5px;
   }
 
@@ -266,19 +313,8 @@
     height: 100%; background: var(--amber); border-radius: 6px;
     width: 0%; transition: width 0.25s ease;
   }
-  #dashboard-screen { display: none; }
 
-  /* ---- Tabs ---- */
-  .tab-nav {
-    display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 2px solid var(--border);
-  }
-  .tab-btn {
-    background: transparent; border: none; padding: 10px 18px; font-size: 13px;
-    font-weight: 600; color: var(--grey); cursor: pointer; border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
-  }
-  .tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
-  .tab-btn:hover { color: var(--navy); }
+  /* ---- Tab panels (nav itself now lives in the sidebar) ---- */
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
 </style>
@@ -305,200 +341,216 @@
 </div>
 
 <!-- ============================================================
-     DASHBOARD SCREEN
+     DASHBOARD SCREEN — sidebar + top bar shell. Same ids, same
+     onclick/data-tab wiring as before; only the layout changed.
      ============================================================ -->
 <div id="dashboard-screen">
-  <header>
-    <div style="display:flex; align-items:center; gap:14px;">
-      <img src="https://raw.githubusercontent.com/GTPLKCBPL-RETENTION/-Lead-validation-portal/main/logo.png" alt="GTPL KCBPL logo" style="height:40px; width:auto; border-radius:4px;">
-      <div>
-        <h1>Sales Coordinator Dashboard</h1>
-        <div class="sub">GTPL KCBPL &mdash; BB / ILL Campaign Leads</div>
-      </div>
-    </div>
-    <div class="actions">
-      <span id="refresh-status"></span>
-      <button onclick="refreshData()">Refresh data</button>
-      <button onclick="logout()">Log out</button>
-    </div>
-  </header>
+  <div class="app-shell">
 
-  <main>
-    <div id="loading-banner" class="loading-banner" style="display:none;">
-      <div class="loading-banner-text">
-        <span id="loading-banner-msg">Loading data&hellip;</span>
-        <span class="loading-banner-pct" id="loading-banner-pct">0%</span>
-      </div>
-      <div class="loading-progress-track"><div class="loading-progress-fill" id="loading-progress-fill"></div></div>
-    </div>
-
-    <div class="kpi-row">
-      <div class="kpi-card">
-        <div class="label">Total leads</div>
-        <div class="value" id="kpi-total-leads">&mdash;</div>
-        <div class="kpi-breakdown" id="kpi-total-leads-breakdown"></div>
-      </div>
-      <div class="kpi-card">
-        <div class="label">Closed / won leads</div>
-        <div class="value" id="kpi-closed-won">&mdash;</div>
-        <div class="kpi-breakdown" id="kpi-closed-won-breakdown"></div>
-      </div>
-      <div class="kpi-card">
-        <div class="label">Sales Lead Funnel (Feedback pending)</div>
-        <div class="value" id="kpi-feedback-pending">&mdash;</div>
-        <div class="kpi-breakdown" id="kpi-feedback-pending-breakdown"></div>
-      </div>
-      <div class="kpi-card revenue">
-        <div class="label">Total revenue generated</div>
-        <div class="value" id="kpi-total-revenue">&mdash;</div>
-        <div class="subvalue">From leads marked "Lead Close"</div>
-        <div class="kpi-breakdown" id="kpi-total-revenue-breakdown"></div>
-      </div>
-    </div>
-
-    <div class="tab-nav">
-      <button class="tab-btn active" data-tab="tab-overview" onclick="switchTab('tab-overview')">Overview</button>
-      <button class="tab-btn" data-tab="tab-rm" onclick="switchTab('tab-rm')">RM-wise</button>
-      <button class="tab-btn" data-tab="tab-source" onclick="switchTab('tab-source')">Lead Status & Month-wise Trend</button>
-      <button class="tab-btn" data-tab="tab-details" onclick="switchTab('tab-details')">Lead Details</button>
-      <button class="tab-btn" data-tab="tab-agent" onclick="switchTab('tab-agent')">Agent Update</button>
-    </div>
-
-    <div id="tab-overview" class="tab-panel active">
-      <div class="panel-grid">
-        <div class="panel">
-          <h2>Lead source-wise breakup</h2>
-          <table id="source-table">
-            <thead><tr><th>Source</th><th class="num">Leads</th><th class="num">Closed count</th><th class="num">Revenue</th><th>Share</th></tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
-
-        <div class="panel">
-          <h2>Connection type-wise breakup</h2>
-          <table id="connection-table">
-            <thead><tr><th>Type</th><th class="num">Leads</th><th class="num">Revenue</th><th>Speed / Bandwidth</th></tr></thead>
-            <tbody></tbody>
-          </table>
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <img src="https://raw.githubusercontent.com/GTPLKCBPL-RETENTION/-Lead-validation-portal/main/logo.png" alt="GTPL KCBPL logo">
+        <div>
+          <div class="sidebar-title">GTPL KCBPL</div>
+          <div class="sidebar-sub">Sales Coordinator</div>
         </div>
       </div>
-    </div>
 
-    <div id="tab-rm" class="tab-panel">
-      <div class="panel-grid">
-        <div class="panel full-width">
-          <h2>RM-wise breakup</h2>
-          <table id="rm-table">
-            <thead>
-              <tr>
-                <th>RM name</th><th class="num">Total leads</th><th class="num">Closed / won</th>
-                <th>Closed by connection type</th>
-                <th>Feedback pending</th>
-                <th>Sales Lead Funnel value &amp; bandwidth</th>
-                <th class="num">Revenue<br><span style="font-weight:400; font-size:10px; color:var(--grey);">From leads marked "Lead Close"</span></th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
+      <div class="sidebar-label">Views</div>
+      <nav class="sidebar-nav">
+        <button class="tab-btn active" data-tab="tab-overview" onclick="switchTab('tab-overview')">Overview</button>
+        <button class="tab-btn" data-tab="tab-rm" onclick="switchTab('tab-rm')">RM-wise</button>
+        <button class="tab-btn" data-tab="tab-source" onclick="switchTab('tab-source')">Lead Status &amp; Trend</button>
+        <button class="tab-btn" data-tab="tab-details" onclick="switchTab('tab-details')">Lead Details</button>
+        <button class="tab-btn" data-tab="tab-agent" onclick="switchTab('tab-agent')">Agent Update</button>
+      </nav>
+
+      <div class="sidebar-foot">BB / ILL Campaign Leads</div>
+    </aside>
+
+    <div class="main-col">
+      <div class="topbar">
+        <div>
+          <h1>Sales Coordinator Dashboard</h1>
+          <div class="sub">GTPL KCBPL &mdash; BB / ILL Campaign Leads</div>
+        </div>
+        <div class="actions">
+          <span id="refresh-status"></span>
+          <button onclick="refreshData()">Refresh data</button>
+          <button onclick="logout()">Log out</button>
         </div>
       </div>
-    </div>
 
-    <div id="tab-source" class="tab-panel">
-      <div class="panel-grid">
-        <div class="panel">
-          <h2>Lead status breakup</h2>
-          <table id="status-table">
-            <thead><tr><th>Status</th><th class="num" style="width:70px;">Leads</th><th style="width:60px;">Share</th></tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
-
-        <div class="panel">
-          <h2>Month-wise trend</h2>
-          <p style="font-size:12px;color:var(--grey);margin-top:-6px;margin-bottom:12px;">
-            "Leads generated" is counted by the lead's original date. "Valid lead count" (also by original date) counts only leads whose status is one of: Feedback Pending from Sales., Hold From Customer End, ISP/P2P Lead, Lead Close, Lead Lost to Competitor, Out of Service Area in West Bengal, Under Discussion with Sales, or RM marked as Not Interested/Required. &mdash; other statuses (Duplicate, Invalid Mobile Number, etc.) are not counted as valid. "Revenue (deals closed)" is counted by the month the deal actually closed &mdash; a lead from one month can close, and add revenue, in a later month.
-          </p>
-          <table id="month-table">
-            <thead><tr><th>Month</th><th class="num">Leads generated</th><th class="num">Valid lead count</th><th class="num">Closed / won</th><th>Closed by connection type</th><th class="num">Revenue (deals closed)</th></tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <div id="tab-details" class="tab-panel">
-      <div class="panel-grid">
-        <div class="panel full-width">
-          <h2>Lead details</h2>
-          <div class="details-filter-bar">
-            <div class="filter-group">
-              <label for="d-filter-rm">RM</label>
-              <select id="d-filter-rm"><option value="">All RMs</option></select>
-            </div>
-            <div class="filter-group">
-              <label for="d-filter-status">Lead status</label>
-              <select id="d-filter-status"><option value="">All statuses</option></select>
-            </div>
-            <button class="clear-btn" onclick="clearDetailsFilters()">Clear filters</button>
+      <main>
+        <div id="loading-banner" class="loading-banner" style="display:none;">
+          <div class="loading-banner-text">
+            <span id="loading-banner-msg">Loading data&hellip;</span>
+            <span class="loading-banner-pct" id="loading-banner-pct">0%</span>
           </div>
-          <div id="leads-table-wrap">
-            <table id="leads-table">
-              <thead>
-                <tr>
-                  <th>Date</th><th>Source</th><th>Company Name</th><th>Contact</th><th>Mobile</th>
-                  <th>Connection</th><th>RM</th><th>Status</th>
-                  <th class="num">Price</th><th class="num">Revenue</th><th>Close month</th>
-                  <th>RM Remarks</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
+          <div class="loading-progress-track"><div class="loading-progress-fill" id="loading-progress-fill"></div></div>
         </div>
-      </div>
-    </div>
 
-    <div id="tab-agent" class="tab-panel">
-      <div class="panel-grid">
-        <div class="panel full-width">
-          <h2>Add new lead</h2>
-          <p style="font-size:13px;color:var(--grey);margin-top:-6px;margin-bottom:16px;">
-            Enter a new customer's details below. The lead date is captured automatically.
-          </p>
-          <button class="primary-btn" id="add-lead-toggle-btn" onclick="toggleAddLeadForm()">+ Add new lead</button>
-
-          <div id="add-lead-form-wrap" style="display:none; margin-top:16px;">
-            <div id="add-lead-fields"></div>
-            <div style="margin-top:6px;">
-              <button class="primary-btn" onclick="submitNewLead()">Save new lead</button>
-            </div>
-            <div id="add-lead-status" class="agent-status-msg" style="display:none; margin-top:12px;"></div>
+        <div class="kpi-row">
+          <div class="kpi-card">
+            <div class="label">Total leads</div>
+            <div class="value" id="kpi-total-leads">&mdash;</div>
+            <div class="kpi-breakdown" id="kpi-total-leads-breakdown"></div>
+          </div>
+          <div class="kpi-card">
+            <div class="label">Closed / won leads</div>
+            <div class="value" id="kpi-closed-won">&mdash;</div>
+            <div class="kpi-breakdown" id="kpi-closed-won-breakdown"></div>
+          </div>
+          <div class="kpi-card">
+            <div class="label">Sales Lead Funnel (Feedback pending)</div>
+            <div class="value" id="kpi-feedback-pending">&mdash;</div>
+            <div class="kpi-breakdown" id="kpi-feedback-pending-breakdown"></div>
+          </div>
+          <div class="kpi-card revenue">
+            <div class="label">Total revenue generated</div>
+            <div class="value" id="kpi-total-revenue">&mdash;</div>
+            <div class="subvalue">From leads marked "Lead Close"</div>
+            <div class="kpi-breakdown" id="kpi-total-revenue-breakdown"></div>
           </div>
         </div>
 
-        <div class="panel full-width">
-          <h2>Agent update</h2>
-          <p style="font-size:13px;color:var(--grey);margin-top:-6px;margin-bottom:16px;">
-            Search a lead by mobile number, then update any field. Changes save directly to the Google Sheet.
-          </p>
-
-          <div class="agent-search-bar">
-            <div class="filter-group">
-              <label for="agent-mobile-input">Mobile number</label>
-              <input type="text" id="agent-mobile-input" placeholder="e.g. 9876543210" inputmode="numeric">
+        <div id="tab-overview" class="tab-panel active">
+          <div class="panel-grid">
+            <div class="panel">
+              <h2>Lead source-wise breakup</h2>
+              <table id="source-table">
+                <thead><tr><th>Source</th><th class="num">Leads</th><th class="num">Closed count</th><th class="num">Revenue</th><th>Share</th></tr></thead>
+                <tbody></tbody>
+              </table>
             </div>
-            <button class="primary-btn" onclick="agentSearchLead()">Search</button>
+
+            <div class="panel">
+              <h2>Connection type-wise breakup</h2>
+              <table id="connection-table">
+                <thead><tr><th>Type</th><th class="num">Leads</th><th class="num">Revenue</th><th>Speed / Bandwidth</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
           </div>
-
-          <div id="agent-search-status" class="agent-status-msg" style="display:none;"></div>
-
-          <div id="agent-results"></div>
         </div>
-      </div>
-    </div>
 
-  </main>
+        <div id="tab-rm" class="tab-panel">
+          <div class="panel-grid">
+            <div class="panel full-width">
+              <h2>RM-wise breakup</h2>
+              <table id="rm-table">
+                <thead>
+                  <tr>
+                    <th>RM name</th><th class="num">Total leads</th><th class="num">Closed / won</th>
+                    <th>Closed by connection type</th>
+                    <th>Feedback pending</th>
+                    <th>Sales Lead Funnel value &amp; bandwidth</th>
+                    <th class="num">Revenue<br><span style="font-weight:400; font-size:10px; color:var(--grey);">From leads marked "Lead Close"</span></th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div id="tab-source" class="tab-panel">
+          <div class="panel-grid">
+            <div class="panel">
+              <h2>Lead status breakup</h2>
+              <table id="status-table">
+                <thead><tr><th>Status</th><th class="num" style="width:70px;">Leads</th><th style="width:60px;">Share</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+
+            <div class="panel">
+              <h2>Month-wise trend</h2>
+              <p style="font-size:12px;color:var(--grey);margin-top:-6px;margin-bottom:12px;">
+                "Leads generated" is counted by the lead's original date. "Valid lead count" (also by original date) counts only leads whose status is one of: Feedback Pending from Sales., Hold From Customer End, ISP/P2P Lead, Lead Close, Lead Lost to Competitor, Out of Service Area in West Bengal, Under Discussion with Sales, or RM marked as Not Interested/Required. &mdash; other statuses (Duplicate, Invalid Mobile Number, etc.) are not counted as valid. "Revenue (deals closed)" is counted by the month the deal actually closed &mdash; a lead from one month can close, and add revenue, in a later month.
+              </p>
+              <table id="month-table">
+                <thead><tr><th>Month</th><th class="num">Leads generated</th><th class="num">Valid lead count</th><th class="num">Closed / won</th><th>Closed by connection type</th><th class="num">Revenue (deals closed)</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div id="tab-details" class="tab-panel">
+          <div class="panel-grid">
+            <div class="panel full-width">
+              <h2>Lead details</h2>
+              <div class="details-filter-bar">
+                <div class="filter-group">
+                  <label for="d-filter-rm">RM</label>
+                  <select id="d-filter-rm"><option value="">All RMs</option></select>
+                </div>
+                <div class="filter-group">
+                  <label for="d-filter-status">Lead status</label>
+                  <select id="d-filter-status"><option value="">All statuses</option></select>
+                </div>
+                <button class="clear-btn" onclick="clearDetailsFilters()">Clear filters</button>
+              </div>
+              <div id="leads-table-wrap">
+                <table id="leads-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th><th>Source</th><th>Company Name</th><th>Contact</th><th>Mobile</th>
+                      <th>Connection</th><th>RM</th><th>Status</th>
+                      <th class="num">Price</th><th class="num">Revenue</th><th>Close month</th>
+                      <th>RM Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="tab-agent" class="tab-panel">
+          <div class="panel-grid">
+            <div class="panel full-width">
+              <h2>Add new lead</h2>
+              <p style="font-size:13px;color:var(--grey);margin-top:-6px;margin-bottom:16px;">
+                Enter a new customer's details below. The lead date is captured automatically.
+              </p>
+              <button class="primary-btn" id="add-lead-toggle-btn" onclick="toggleAddLeadForm()">+ Add new lead</button>
+
+              <div id="add-lead-form-wrap" style="display:none; margin-top:16px;">
+                <div id="add-lead-fields"></div>
+                <div style="margin-top:6px;">
+                  <button class="primary-btn" onclick="submitNewLead()">Save new lead</button>
+                </div>
+                <div id="add-lead-status" class="agent-status-msg" style="display:none; margin-top:12px;"></div>
+              </div>
+            </div>
+
+            <div class="panel full-width">
+              <h2>Agent update</h2>
+              <p style="font-size:13px;color:var(--grey);margin-top:-6px;margin-bottom:16px;">
+                Search a lead by mobile number, then update any field. Changes save directly to the Google Sheet.
+              </p>
+
+              <div class="agent-search-bar">
+                <div class="filter-group">
+                  <label for="agent-mobile-input">Mobile number</label>
+                  <input type="text" id="agent-mobile-input" placeholder="e.g. 9876543210" inputmode="numeric">
+                </div>
+                <button class="primary-btn" onclick="agentSearchLead()">Search</button>
+              </div>
+
+              <div id="agent-search-status" class="agent-status-msg" style="display:none;"></div>
+
+              <div id="agent-results"></div>
+            </div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
 </div>
 
 <script>
