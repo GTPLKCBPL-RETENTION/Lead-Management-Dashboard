@@ -411,7 +411,7 @@
           <div class="loading-progress-track"><div class="loading-progress-fill" id="loading-progress-fill"></div></div>
         </div>
 
-        <div class="kpi-row">
+        <div class="kpi-row" id="kpi-row">
           <div class="kpi-card">
             <div class="label">Total leads</div>
             <div class="value" id="kpi-total-leads">&mdash;</div>
@@ -617,6 +617,12 @@ function switchTab(tabId) {
   document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
   document.getElementById(tabId).classList.add('active');
   document.querySelector('.tab-btn[data-tab="' + tabId + '"]').classList.add('active');
+
+  // The KPI summary row (Total leads / Closed / Funnel / Revenue) is
+  // only relevant on the Overview tab — every other tab shows its own
+  // focused data instead.
+  var kpiRow = document.getElementById('kpi-row');
+  if (kpiRow) kpiRow.style.display = (tabId === 'tab-overview') ? 'grid' : 'none';
 }
 
 // =============================================================================
