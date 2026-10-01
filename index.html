@@ -495,6 +495,12 @@
           <div class="panel-grid">
             <div class="panel">
               <h2>Lead status breakup</h2>
+              <div class="details-filter-bar" style="margin-bottom:12px;">
+                <div class="filter-group">
+                  <label for="s-filter-month">Month (by lead date)</label>
+                  <select id="s-filter-month"><option value="">All months</option></select>
+                </div>
+              </div>
               <table id="status-table">
                 <thead><tr><th>Status</th><th class="num" style="width:70px;">Leads</th><th style="width:60px;">Share</th></tr></thead>
                 <tbody></tbody>
@@ -503,6 +509,12 @@
 
             <div class="panel">
               <h2>Month-wise trend</h2>
+              <div class="details-filter-bar" style="margin-bottom:12px;">
+                <div class="filter-group">
+                  <label for="t-filter-month">Month</label>
+                  <select id="t-filter-month"><option value="">All months</option></select>
+                </div>
+              </div>
               <p style="font-size:12px;color:var(--grey);margin-top:-6px;margin-bottom:12px;">
                 "Leads generated" is counted by the lead's original date. "Valid lead count" (also by original date) counts only leads whose status is one of: Feedback Pending from Sales., Hold From Customer End, ISP/P2P Lead, Lead Close, Lead Lost to Competitor, Out of Service Area in West Bengal, Under Discussion with Sales, or RM marked as Not Interested/Required. &mdash; other statuses (Duplicate, Invalid Mobile Number, etc.) are not counted as valid. "Revenue (deals closed)" is counted by the month the deal actually closed &mdash; a lead from one month can close, and add revenue, in a later month.
               </p>
@@ -1037,6 +1049,8 @@ function renderByConnection(leads) {
 // related statuses are visually grouped.
 // =============================================================================
 function renderByStatus(leads) {
+  var sMonth = document.getElementById('s-filter-month').value;
+  if (sMonth) leads = leads.filter(function (l) { return l.lead_month === sMonth; });
   var groups = {}; // raw status text -> { count, category }
   leads.forEach(function (l) {
     var key = l.status_raw || '(Blank)';
@@ -1136,6 +1150,9 @@ function renderByMonth(leads) {
   var allMonths = Array.from(new Set(
     Object.keys(leadCounts).concat(Object.keys(revenueByCloseMonth)).concat(Object.keys(closedByCloseMonth))
   )).sort();
+
+  var tMonth = document.getElementById('t-filter-month').value;
+  if (tMonth) allMonths = allMonths.filter(function (m) { return m === tMonth; });
 
   var tbody = document.querySelector('#month-table tbody');
   tbody.innerHTML = '';
@@ -1357,6 +1374,26 @@ function populateDetailsFilterOptions() {
     monthSel.appendChild(opt);
   });
   monthSel.value = prevMonth;
+
+  // Month dropdowns for "Lead status breakup" (lead month) and "Month-wise trend"
+  // (lead month + close month). "All months" first, then newest first.
+  function fillMonthSelect_(sel, monthsObj) {
+    var prev = sel.value;
+    while (sel.options.length > 1) sel.remove(1);
+    Object.keys(monthsObj).sort().reverse().forEach(function (m) {
+      var opt = document.createElement('option');
+      opt.value = m; opt.textContent = formatMonthLabel_(m);
+      sel.appendChild(opt);
+    });
+    sel.value = monthsObj[prev] ? prev : '';
+  }
+  var trendMonths = {};
+  ALL_LEADS.forEach(function (l) {
+    if (l.lead_month) trendMonths[l.lead_month] = true;
+    if (l.close_month_normalized && (l.status_category === 'Closed / Won' || l.revenue)) trendMonths[l.close_month_normalized] = true;
+  });
+  fillMonthSelect_(document.getElementById('s-filter-month'), monthSet);
+  fillMonthSelect_(document.getElementById('t-filter-month'), trendMonths);
 }
 
 function clearDetailsFilters() {
@@ -1409,6 +1446,8 @@ document.getElementById('d-filter-rm').addEventListener('change', renderAll);
 document.getElementById('d-filter-status').addEventListener('change', renderAll);
 document.getElementById('d-filter-source').addEventListener('change', renderAll);
 document.getElementById('d-filter-month').addEventListener('change', renderAll);
+document.getElementById('s-filter-month').addEventListener('change', renderAll);
+document.getElementById('t-filter-month').addEventListener('change', renderAll);
 
 // =============================================================================
 // DOWNLOAD DATA (TL only) — month-wise CSV, built in the browser from
