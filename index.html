@@ -505,15 +505,8 @@
           <div class="panel-grid">
             <div class="panel full-width">
               <h2>Download month-wise data</h2>
-              <p style="color:#667; font-size:13px; margin:0 0 14px;">Select a month and download all its leads as a CSV file (opens in Excel). Only visible to TL login.</p>
+              <p style="color:#667; font-size:13px; margin:0 0 14px;">Select a month (by lead date) and download all its leads as a CSV file (opens in Excel). Only visible to TL login.</p>
               <div class="details-filter-bar">
-                <div class="filter-group">
-                  <label for="dl-basis">Month based on</label>
-                  <select id="dl-basis">
-                    <option value="lead_month">Lead date</option>
-                    <option value="close_month_normalized">Lead close month</option>
-                  </select>
-                </div>
                 <div class="filter-group">
                   <label for="dl-month">Month</label>
                   <select id="dl-month"></select>
@@ -1352,9 +1345,8 @@ function dlMonthLabel_(ym) {
 
 function populateDownloadMonths_() {
   var sel = document.getElementById('dl-month');
-  var basisEl = document.getElementById('dl-basis');
-  if (!sel || !basisEl) return;
-  var basis = basisEl.value;
+  if (!sel) return;
+  var basis = 'lead_month';
   var prev = sel.value;
   var set = {};
   ALL_LEADS.forEach(function (l) { if (l[basis]) set[l[basis]] = true; });
@@ -1370,7 +1362,7 @@ function populateDownloadMonths_() {
 }
 
 function getDownloadLeads_() {
-  var basis = document.getElementById('dl-basis').value;
+  var basis = 'lead_month';
   var month = document.getElementById('dl-month').value;
   if (month === '__all__') return ALL_LEADS;
   return ALL_LEADS.filter(function (l) { return l[basis] === month; });
@@ -1423,7 +1415,6 @@ function downloadMonthCsv() {
   setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
 }
 
-document.getElementById('dl-basis').addEventListener('change', populateDownloadMonths_);
 document.getElementById('dl-month').addEventListener('change', updateDownloadInfo_);
 
 // =============================================================================
