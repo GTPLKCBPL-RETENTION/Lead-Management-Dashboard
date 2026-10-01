@@ -132,6 +132,19 @@
     padding: 7px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; height: 32px;
   }
   .details-filter-bar .clear-btn:hover { border-color: var(--red); color: var(--red); }
+  .leads-count-strip {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px; margin-bottom: 14px;
+  }
+  .leads-count-strip .lc-card { background: #f5f7fa; border-radius: 8px; padding: 10px 12px; }
+  .leads-count-strip .lc-label { font-size: 12px; color: var(--grey); }
+  .leads-count-strip .lc-val { font-size: 20px; font-weight: 600; color: #111; }
+  .leads-count-strip .lc-card.lc-valid { background: #e8f6ee; }
+  .leads-count-strip .lc-card.lc-valid .lc-label, .leads-count-strip .lc-card.lc-valid .lc-val { color: #1a7f4b; }
+  .leads-count-strip .lc-card.lc-invalid { background: #fdecec; }
+  .leads-count-strip .lc-card.lc-invalid .lc-label, .leads-count-strip .lc-card.lc-invalid .lc-val { color: #b42318; }
+  .leads-count-strip .lc-card.lc-closed { background: #e8f0fe; }
+  .leads-count-strip .lc-card.lc-closed .lc-label, .leads-count-strip .lc-card.lc-closed .lc-val { color: #1d4ed8; }
 
   /* ---- Agent Update tab ---- */
   .agent-search-bar {
@@ -541,6 +554,7 @@
                 </div>
                 <button class="clear-btn" onclick="clearDetailsFilters()">Clear filters</button>
               </div>
+              <div id="leads-count" class="leads-count-strip"></div>
               <div id="leads-table-wrap">
                 <table id="leads-table">
                   <thead>
@@ -1234,6 +1248,22 @@ function renderLeadsTable(leads) {
     if (monthFilter && l.lead_month !== monthFilter) return false;
     return true;
   });
+
+  var countEl = document.getElementById('leads-count');
+  if (countEl) {
+    var validCount = visibleLeads.filter(function (l) { return isValidLeadStatus_(l.status_raw); }).length;
+    var closedCount = visibleLeads.filter(function (l) { return l.status_category === 'Closed / Won'; }).length;
+    var revTotal = visibleLeads.reduce(function (sum, l) { return sum + (l.revenue || 0); }, 0);
+    function lcCard_(cls, label, val) {
+      return '<div class="lc-card ' + cls + '"><div class="lc-label">' + label + '</div><div class="lc-val">' + val + '</div></div>';
+    }
+    countEl.innerHTML =
+      lcCard_('', 'Leads (of ' + leads.length.toLocaleString('en-IN') + ')', visibleLeads.length.toLocaleString('en-IN')) +
+      lcCard_('lc-valid', 'Valid', validCount.toLocaleString('en-IN')) +
+      lcCard_('lc-invalid', 'Invalid', (visibleLeads.length - validCount).toLocaleString('en-IN')) +
+      lcCard_('lc-closed', 'Closed', closedCount.toLocaleString('en-IN')) +
+      lcCard_('', 'Revenue', fmtINR(revTotal));
+  }
 
   var tbody = document.querySelector('#leads-table tbody');
   tbody.innerHTML = '';
