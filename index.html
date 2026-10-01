@@ -531,6 +531,14 @@
                   <label for="d-filter-status">Lead status</label>
                   <select id="d-filter-status"><option value="">All statuses</option></select>
                 </div>
+                <div class="filter-group">
+                  <label for="d-filter-source">Lead source</label>
+                  <select id="d-filter-source"><option value="">All sources</option></select>
+                </div>
+                <div class="filter-group">
+                  <label for="d-filter-month">Month</label>
+                  <select id="d-filter-month"><option value="">All months</option></select>
+                </div>
                 <button class="clear-btn" onclick="clearDetailsFilters()">Clear filters</button>
               </div>
               <div id="leads-table-wrap">
@@ -1216,10 +1224,14 @@ function renderByRM(leads) {
 function renderLeadsTable(leads) {
   var rmFilter = document.getElementById('d-filter-rm').value;
   var statusFilter = document.getElementById('d-filter-status').value;
+  var sourceFilter = document.getElementById('d-filter-source').value;
+  var monthFilter = document.getElementById('d-filter-month').value;
 
   var visibleLeads = leads.filter(function (l) {
     if (rmFilter && (l.rm_names || []).indexOf(rmFilter) === -1) return false;
     if (statusFilter && String(l.status_raw || '').trim().toLowerCase() !== statusFilter.trim().toLowerCase()) return false;
+    if (sourceFilter && String(l.lead_source || '').trim().toLowerCase() !== sourceFilter.trim().toLowerCase()) return false;
+    if (monthFilter && l.lead_month !== monthFilter) return false;
     return true;
   });
 
@@ -1283,11 +1295,45 @@ function populateDetailsFilterOptions() {
     statusSel.appendChild(opt);
   });
 
+  // Lead source dropdown (case-insensitive dedupe, A-Z)
+  var sourceSel = document.getElementById('d-filter-source');
+  var prevSource = sourceSel.value;
+  while (sourceSel.options.length > 1) sourceSel.remove(1);
+  var seenSrc = {};
+  var sources = [];
+  ALL_LEADS.forEach(function (l) {
+    var s = (l.lead_source || '').trim();
+    if (!s) return;
+    var key = s.toLowerCase();
+    if (!seenSrc[key]) { seenSrc[key] = true; sources.push(s); }
+  });
+  sources.sort();
+  sources.forEach(function (s) {
+    var opt = document.createElement('option');
+    opt.value = s; opt.textContent = s;
+    sourceSel.appendChild(opt);
+  });
+  sourceSel.value = prevSource;
+
+  // Month dropdown: "All months" on top, then months (newest first)
+  var monthSel = document.getElementById('d-filter-month');
+  var prevMonth = monthSel.value;
+  while (monthSel.options.length > 1) monthSel.remove(1);
+  var monthSet = {};
+  ALL_LEADS.forEach(function (l) { if (l.lead_month) monthSet[l.lead_month] = true; });
+  Object.keys(monthSet).sort().reverse().forEach(function (m) {
+    var opt = document.createElement('option');
+    opt.value = m; opt.textContent = formatMonthLabel_(m);
+    monthSel.appendChild(opt);
+  });
+  monthSel.value = prevMonth;
 }
 
 function clearDetailsFilters() {
   document.getElementById('d-filter-rm').value = '';
   document.getElementById('d-filter-status').value = '';
+  document.getElementById('d-filter-source').value = '';
+  document.getElementById('d-filter-month').value = '';
   renderAll();
 }
 
@@ -1331,6 +1377,8 @@ async function refreshData() {
 
 document.getElementById('d-filter-rm').addEventListener('change', renderAll);
 document.getElementById('d-filter-status').addEventListener('change', renderAll);
+document.getElementById('d-filter-source').addEventListener('change', renderAll);
+document.getElementById('d-filter-month').addEventListener('change', renderAll);
 
 // =============================================================================
 // DOWNLOAD DATA (TL only) — month-wise CSV, built in the browser from
