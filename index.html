@@ -263,6 +263,29 @@
     padding: 8px 12px; border-bottom: 1px solid #eef1f4; font-size: 13px;
   }
 
+  /* ---- Sales Team tab (TL only) ---- */
+  .team-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+  .team-list { border: 1px solid var(--border); border-radius: 10px; background: #fafbfc; }
+  .team-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 9px 14px; border-bottom: 1px solid #eef1f4; font-size: 13px;
+  }
+  .team-row:last-child { border-bottom: none; }
+  .team-row.is-new { background: #E1F5EF; }
+  .team-row .team-tag { font-size: 11px; color: var(--teal); font-weight: 600; margin-left: 8px; }
+  .team-count { font-size: 12px; color: var(--grey); margin: 0 0 8px; }
+  .team-add-row { display: flex; gap: 8px; }
+  .team-add-row input[type=text] {
+    flex: 1; min-width: 0; padding: 9px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px;
+  }
+  .team-msg { margin-top: 10px; font-size: 13px; min-height: 18px; }
+  .team-msg.ok { color: var(--teal); }
+  .team-msg.err { color: var(--red); }
+  .team-msg.warn { color: var(--amber); }
+  .team-save-bar { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .team-save-bar .primary-btn:disabled { opacity: .5; cursor: not-allowed; }
+  @media (max-width: 760px) { .team-layout { grid-template-columns: 1fr; } }
+
   /* ---- Main content ---- */
   main { padding: 24px 28px 60px; max-width: 1400px; margin: 0 auto; }
 
@@ -400,6 +423,7 @@
         <button class="tab-btn" data-tab="tab-details" onclick="switchTab('tab-details')">Lead Details</button>
         <button class="tab-btn" data-tab="tab-agent" onclick="switchTab('tab-agent')">Agent Update</button>
         <button class="tab-btn" id="tab-btn-download" data-tab="tab-download" onclick="switchTab('tab-download')" style="display:none;">Download Data</button>
+        <button class="tab-btn" id="tab-btn-salesteam" data-tab="tab-salesteam" onclick="switchTab('tab-salesteam')" style="display:none;">Sales Team</button>
       </nav>
 
       <div class="sidebar-foot">BB / ILL Campaign Leads</div>
@@ -543,6 +567,35 @@
           </div>
         </div>
 
+        <div id="tab-salesteam" class="tab-panel">
+          <div class="panel-grid">
+            <div class="panel full-width">
+              <h2>Sales team</h2>
+              <p style="color:#667; font-size:13px; margin:0 0 18px;">These names appear in the RM Name dropdown on Add New Lead and Agent Update. Removing a name only hides it from the dropdown &mdash; leads already assigned to that person stay as they are. Only visible to TL login.</p>
+              <div class="team-layout">
+                <div>
+                  <p class="team-count" id="team-count"></p>
+                  <div class="team-list" id="team-list"></div>
+                </div>
+                <div>
+                  <div class="filter-group">
+                    <label for="team-new-name">Add a sales person</label>
+                    <div class="team-add-row">
+                      <input type="text" id="team-new-name" placeholder="Full name, e.g. Abhijit Ghosh" maxlength="60" autocomplete="off">
+                      <button class="primary-btn" type="button" onclick="teamAddName()">Add</button>
+                    </div>
+                  </div>
+                  <div class="team-msg" id="team-add-msg"></div>
+                </div>
+              </div>
+              <div class="team-save-bar">
+                <button class="primary-btn" id="team-save-btn" type="button" onclick="teamSave()" disabled>Save changes</button>
+                <span class="team-msg" id="team-save-msg" style="margin-top:0;"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div id="tab-details" class="tab-panel">
           <div class="panel-grid">
             <div class="panel full-width">
@@ -672,7 +725,7 @@ var FEEDBACK_PENDING_STATUSES = [
 // TABS
 // =============================================================================
 function switchTab(tabId) {
-  if (tabId === 'tab-download' && CURRENT_ROLE !== 'tl') tabId = 'tab-overview';
+  if ((tabId === 'tab-download' || tabId === 'tab-salesteam') && CURRENT_ROLE !== 'tl') tabId = 'tab-overview';
   document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.remove('active'); });
   document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
   document.getElementById(tabId).classList.add('active');
@@ -683,6 +736,8 @@ function switchTab(tabId) {
   // focused data instead.
   var kpiRow = document.getElementById('kpi-row');
   if (kpiRow) kpiRow.style.display = (tabId === 'tab-overview') ? 'grid' : 'none';
+
+  if (tabId === 'tab-salesteam') teamOpenTab_();
 }
 
 // =============================================================================
@@ -716,6 +771,8 @@ function applyRole_() {
   CURRENT_ROLE = sessionStorage.getItem('sc_role') === 'tl' ? 'tl' : 'agent';
   var b = document.getElementById('tab-btn-download');
   if (b) b.style.display = (CURRENT_ROLE === 'tl') ? '' : 'none';
+  var t = document.getElementById('tab-btn-salesteam');
+  if (t) t.style.display = (CURRENT_ROLE === 'tl') ? '' : 'none';
 }
 
 function showDashboard() {
@@ -1418,10 +1475,10 @@ function renderAll() {
   renderLeadsTable(filtered);
 }
 
-// Full load — fetches lead data. Dropdown options are hardcoded in
-// AGENT_EDITABLE_COLUMNS below and no longer fetched from the sheet.
+// Full load — fetches lead data plus the sales team (RM Name) list from
+// the sheet. Other dropdown options stay hardcoded in AGENT_EDITABLE_COLUMNS.
 async function loadAll() {
-  await fetchLeadData();
+  await Promise.all([fetchLeadData(), loadSalesTeam_()]);
   populateDownloadMonths_();
   populateDetailsFilterOptions();
   renderAll();
@@ -1538,6 +1595,12 @@ document.getElementById('dl-month').addEventListener('change', updateDownloadInf
 // AGENT UPDATE TAB
 // =============================================================================
 
+// Fallback sales team list — used only if the sheet list can't be loaded.
+// The live list is kept in the "Dropdown Config" sheet (RM Name column)
+// and edited by TL from the Sales Team tab.
+var DEFAULT_RM_OPTIONS = ["Nikhil Jha", "Umakant Thakur", "Ashok Pandey", "Pritam Das", "Sudip Bose",
+  "Tapas Dandapat", "Tathagata Samasddar", "Moumita Roy", "Partha Ghosh", "Navid Anjum", "Abhijit Ghosh"];
+
 // Column list shown in the dropdown — label must exactly match what
 // Code.gs's EDITABLE_COLUMNS sends back as the key in "values".
 var AGENT_EDITABLE_COLUMNS = [
@@ -1556,8 +1619,7 @@ var AGENT_EDITABLE_COLUMNS = [
     options: ["Moumita Roy"] },
   { label: "Remarks", header: "REMARKS", type: "textarea" },
   { label: "RM Name", header: "RM NAME", type: "select", required: true,
-    options: ["Nikhil Jha", "Umakant Thakur", "Ashok Pandey", "Pritam Das", "Sudip Bose",
-              "Tapas Dandapat", "Tathagata Samasddar", "Moumita Roy", "Partha Ghosh", "Navid Anjum"] },
+    options: DEFAULT_RM_OPTIONS.slice() }, // replaced at login by the list in the sheet (TL > Sales Team)
   { label: "RM Remarks", header: "RM Remarks", type: "textarea", skipOnAdd: true },
   { label: "RM Follow Up Date", header: "RM Follow Up Date", type: "date", skipOnAdd: true },
   { label: "Lead Close Month", header: "LEAD CLOSE MONTH", type: "select", skipOnAdd: true,
@@ -2076,6 +2138,148 @@ function showDuplicateMobileModal(onContinue) {
     onContinue();
   });
 }
+
+// =============================================================================
+// SALES TEAM (TL only) — add / remove names in the RM Name dropdown.
+// The list lives in the "Dropdown Config" sheet, column "RM Name".
+// =============================================================================
+var TEAM_SAVED = [];   // list as last loaded from / saved to the sheet
+var TEAM_DRAFT = [];   // list being edited in the tab (not yet saved)
+var TEAM_SAVING = false;
+
+function rmColumn_() {
+  return AGENT_EDITABLE_COLUMNS.filter(function (c) { return c.header === 'RM NAME'; })[0];
+}
+
+function escapeHtml_(str) {
+  return String(str).replace(/[&<>"']/g, function (ch) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+  });
+}
+
+function cleanName_(raw) {
+  return String(raw || '').trim().replace(/\s+/g, ' ');
+}
+
+// Loads the RM list from the sheet and applies it to the RM Name dropdown.
+// Keeps the hardcoded fallback if the request fails or the list is empty.
+async function loadSalesTeam_() {
+  try {
+    var data = await agentPostToScript({ action: 'get_dropdown_config' });
+    var list = (data && data.success && data.config && data.config['RM Name']) || [];
+    if (list.length) applySalesTeam_(list);
+  } catch (err) {
+    console.warn('Sales team list not loaded, using built-in list:', err);
+  }
+}
+
+function applySalesTeam_(list) {
+  var col = rmColumn_();
+  if (col) col.options = list.slice();
+  TEAM_SAVED = list.slice();
+}
+
+function teamIsDirty_() {
+  return TEAM_DRAFT.join('\u0001') !== TEAM_SAVED.join('\u0001');
+}
+
+function teamOpenTab_() {
+  if (!TEAM_SAVED.length) TEAM_SAVED = (rmColumn_() || { options: [] }).options.slice();
+  if (!teamIsDirty_() || !TEAM_DRAFT.length) TEAM_DRAFT = TEAM_SAVED.slice();
+  teamRender_();
+}
+
+function teamRender_() {
+  var savedKeys = TEAM_SAVED.map(function (n) { return n.toLowerCase(); });
+  document.getElementById('team-count').textContent =
+    TEAM_DRAFT.length + (TEAM_DRAFT.length === 1 ? ' person' : ' people') + ' in the dropdown';
+
+  document.getElementById('team-list').innerHTML = TEAM_DRAFT.map(function (name, i) {
+    var isNew = savedKeys.indexOf(name.toLowerCase()) === -1;
+    return '<div class="team-row' + (isNew ? ' is-new' : '') + '">' +
+      '<span>' + escapeHtml_(name) + (isNew ? '<span class="team-tag">New, not saved</span>' : '') + '</span>' +
+      '<button class="admin-remove-btn" type="button" title="Remove ' + escapeHtml_(name) + '" ' +
+        'aria-label="Remove ' + escapeHtml_(name) + '" onclick="teamRemoveName(' + i + ')">&times;</button>' +
+    '</div>';
+  }).join('');
+
+  var dirty = teamIsDirty_();
+  var saveBtn = document.getElementById('team-save-btn');
+  saveBtn.disabled = !dirty || TEAM_SAVING;
+  saveBtn.textContent = TEAM_SAVING ? 'Saving\u2026' : 'Save changes';
+
+  var removed = TEAM_SAVED.filter(function (n) {
+    return TEAM_DRAFT.map(function (d) { return d.toLowerCase(); }).indexOf(n.toLowerCase()) === -1;
+  });
+  var msgEl = document.getElementById('team-save-msg');
+  if (!TEAM_SAVING && dirty) {
+    msgEl.className = 'team-msg warn';
+    msgEl.textContent = 'Unsaved changes' + (removed.length ? ' \u2014 removing: ' + removed.join(', ') : '') + '.';
+  } else if (!TEAM_SAVING && msgEl.classList.contains('warn')) {
+    msgEl.className = 'team-msg';
+    msgEl.textContent = '';
+  }
+}
+
+function teamSetAddMsg_(text, kind) {
+  var el = document.getElementById('team-add-msg');
+  el.className = 'team-msg' + (kind ? ' ' + kind : '');
+  el.textContent = text || '';
+}
+
+function teamAddName() {
+  var input = document.getElementById('team-new-name');
+  var name = cleanName_(input.value);
+  if (!name) { teamSetAddMsg_('Type a name first.', 'err'); input.focus(); return; }
+  if (name.length < 3) { teamSetAddMsg_('Name looks too short. Enter the full name.', 'err'); input.focus(); return; }
+  var exists = TEAM_DRAFT.some(function (n) { return n.toLowerCase() === name.toLowerCase(); });
+  if (exists) { teamSetAddMsg_(name + ' is already in the list.', 'err'); input.select(); return; }
+
+  TEAM_DRAFT.push(name);
+  input.value = '';
+  teamSetAddMsg_(name + ' added. Click Save changes to update the dropdown.', 'ok');
+  teamRender_();
+  input.focus();
+}
+
+function teamRemoveName(index) {
+  var name = TEAM_DRAFT[index];
+  if (name === undefined) return;
+  if (TEAM_DRAFT.length === 1) { teamSetAddMsg_('Keep at least one name in the list.', 'err'); return; }
+  TEAM_DRAFT.splice(index, 1);
+  teamSetAddMsg_(name + ' removed from the list. Click Save changes to confirm.', 'warn');
+  teamRender_();
+}
+
+async function teamSave() {
+  if (CURRENT_ROLE !== 'tl' || TEAM_SAVING || !teamIsDirty_()) return;
+  TEAM_SAVING = true;
+  var msgEl = document.getElementById('team-save-msg');
+  msgEl.className = 'team-msg';
+  msgEl.textContent = '';
+  teamRender_();
+  try {
+    var data = await agentPostToScript({ action: 'update_dropdown_config', column: 'RM Name', values: TEAM_DRAFT });
+    if (!data || !data.success) throw new Error((data && data.error) || 'Unknown error from the sheet.');
+    applySalesTeam_(data.values || TEAM_DRAFT);
+    TEAM_DRAFT = TEAM_SAVED.slice();
+    // Refresh the Add New Lead form if it's open, so the new list shows straight away.
+    if (typeof ADD_LEAD_FORM_VISIBLE !== 'undefined' && ADD_LEAD_FORM_VISIBLE) renderAddLeadFields();
+    msgEl.className = 'team-msg ok';
+    msgEl.textContent = 'Saved. The RM Name dropdown now shows ' + TEAM_SAVED.length + ' people.';
+    teamSetAddMsg_('', '');
+  } catch (err) {
+    msgEl.className = 'team-msg err';
+    msgEl.textContent = 'Not saved: ' + err.message + ' Check your connection and try again.';
+  } finally {
+    TEAM_SAVING = false;
+    teamRender_();
+  }
+}
+
+document.getElementById('team-new-name').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') { e.preventDefault(); teamAddName(); }
+});
 
 // =============================================================================
 // INIT — restore session if already logged in this browser tab
