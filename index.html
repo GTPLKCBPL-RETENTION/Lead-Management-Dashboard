@@ -1928,7 +1928,7 @@ async function agentSubmitUpdate(cardId, sheetRowNumber) {
   statusEl.style.display = 'block';
 
   try {
-    var data = await agentPostToScript({ mobile: mobile, column: header, value: newValue });
+    var data = await agentPostToScript({ mobile: mobile, column: header, value: newValue, row: sheetRowNumber });
     if (data.success) {
       statusEl.className = 'agent-status-msg success';
       statusEl.textContent = 'Saved to the Google Sheet.';
