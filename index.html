@@ -1711,6 +1711,9 @@ function agentHideStatus() {
 // so redirect:'follow' is required or the fetch fails with a generic
 // "NetworkError" before it ever reaches Code.gs.
 async function agentPostToScript(payload) {
+  // Tag every request with the login role (TL / agent) so Code.gs can
+  // record who made the change in the Change Log tab.
+  payload.role = payload.role || (typeof CURRENT_ROLE !== 'undefined' ? CURRENT_ROLE : '');
   var res = await fetch(API_BASE, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -1930,8 +1933,16 @@ async function agentSubmitUpdate(cardId, sheetRowNumber) {
   try {
     var data = await agentPostToScript({ mobile: mobile, column: header, value: newValue, row: sheetRowNumber });
     if (data.success) {
-      statusEl.className = 'agent-status-msg success';
-      statusEl.textContent = 'Saved to the Google Sheet.';
+      var changedRows = data.updated_rows || [];
+      if (changedRows.length > 1) {
+        // Old Code.gs behaviour: one update wrote into every row with this mobile.
+        statusEl.className = 'agent-status-msg error';
+        statusEl.textContent = 'WARNING: ' + changedRows.length + ' rows were changed (sheet rows ' + changedRows.join(', ') +
+          '). The Apps Script is still on the OLD version - deploy the new Code.gs (Deploy > Manage deployments > Edit > New version).';
+      } else {
+        statusEl.className = 'agent-status-msg success';
+        statusEl.textContent = 'Saved to the Google Sheet' + (changedRows.length === 1 ? ' (sheet row ' + changedRows[0] + ' only).' : '.');
+      }
       card._matchValues[header] = newValue;
       card.querySelector('[data-role="current-value"]').textContent = newValue;
     } else {
