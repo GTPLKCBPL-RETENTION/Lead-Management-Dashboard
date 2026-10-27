@@ -123,10 +123,6 @@
   }
   .details-filter-bar .filter-group { display: flex; flex-direction: column; gap: 4px; }
   .details-filter-bar label { font-size: 11px; color: var(--grey); font-weight: 600; }
-  .details-filter-bar input[type=date] {
-    padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px;
-    font-size: 13px; background: #fff; height: 32px; box-sizing: border-box;
-  }
   .details-filter-bar select {
     padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px;
     font-size: 13px; min-width: 180px; background: #fff;
@@ -627,12 +623,8 @@
                   <select id="d-filter-source"><option value="">All sources</option></select>
                 </div>
                 <div class="filter-group">
-                  <label for="d-filter-from">From date</label>
-                  <input type="date" id="d-filter-from">
-                </div>
-                <div class="filter-group">
-                  <label for="d-filter-to">To date</label>
-                  <input type="date" id="d-filter-to">
+                  <label for="d-filter-month">Month</label>
+                  <select id="d-filter-month"><option value="">All months</option></select>
                 </div>
                 <button class="clear-btn" onclick="clearDetailsFilters()">Clear filters</button>
               </div>
@@ -1330,19 +1322,13 @@ function renderLeadsTable(leads) {
   var rmFilter = document.getElementById('d-filter-rm').value;
   var statusFilter = document.getElementById('d-filter-status').value;
   var sourceFilter = document.getElementById('d-filter-source').value;
-  var fromDate = document.getElementById('d-filter-from').value; // yyyy-mm-dd
-  var toDate = document.getElementById('d-filter-to').value;
+  var monthFilter = document.getElementById('d-filter-month').value;
 
   var visibleLeads = leads.filter(function (l) {
     if (rmFilter && (l.rm_names || []).indexOf(rmFilter) === -1) return false;
     if (statusFilter && String(l.status_raw || '').trim().toLowerCase() !== statusFilter.trim().toLowerCase()) return false;
     if (sourceFilter && String(l.lead_source || '').trim().toLowerCase() !== sourceFilter.trim().toLowerCase()) return false;
-    if (fromDate || toDate) {
-      var ld = String(l.lead_date || '').slice(0, 10);
-      if (!ld) return false;
-      if (fromDate && ld < fromDate) return false;
-      if (toDate && ld > toDate) return false;
-    }
+    if (monthFilter && l.lead_month !== monthFilter) return false;
     return true;
   });
 
@@ -1443,8 +1429,18 @@ function populateDetailsFilterOptions() {
   });
   sourceSel.value = prevSource;
 
+  // Month dropdown: "All months" on top, then months (newest first)
+  var monthSel = document.getElementById('d-filter-month');
+  var prevMonth = monthSel.value;
+  while (monthSel.options.length > 1) monthSel.remove(1);
   var monthSet = {};
   ALL_LEADS.forEach(function (l) { if (l.lead_month) monthSet[l.lead_month] = true; });
+  Object.keys(monthSet).sort().reverse().forEach(function (m) {
+    var opt = document.createElement('option');
+    opt.value = m; opt.textContent = formatMonthLabel_(m);
+    monthSel.appendChild(opt);
+  });
+  monthSel.value = prevMonth;
 
   // Month dropdowns for "Lead status breakup" (lead month) and "Month-wise trend"
   // (lead month + close month). "All months" first, then newest first.
@@ -1471,8 +1467,7 @@ function clearDetailsFilters() {
   document.getElementById('d-filter-rm').value = '';
   document.getElementById('d-filter-status').value = '';
   document.getElementById('d-filter-source').value = '';
-  document.getElementById('d-filter-from').value = '';
-  document.getElementById('d-filter-to').value = '';
+  document.getElementById('d-filter-month').value = '';
   renderAll();
 }
 
@@ -1517,8 +1512,7 @@ async function refreshData() {
 document.getElementById('d-filter-rm').addEventListener('change', renderAll);
 document.getElementById('d-filter-status').addEventListener('change', renderAll);
 document.getElementById('d-filter-source').addEventListener('change', renderAll);
-document.getElementById('d-filter-from').addEventListener('change', renderAll);
-document.getElementById('d-filter-to').addEventListener('change', renderAll);
+document.getElementById('d-filter-month').addEventListener('change', renderAll);
 document.getElementById('s-filter-month').addEventListener('change', renderAll);
 document.getElementById('t-filter-month').addEventListener('change', renderAll);
 
