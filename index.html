@@ -123,6 +123,10 @@
   }
   .details-filter-bar .filter-group { display: flex; flex-direction: column; gap: 4px; }
   .details-filter-bar label { font-size: 11px; color: var(--grey); font-weight: 600; }
+  .details-filter-bar input[type=date] {
+    padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px;
+    font-size: 13px; background: #fff; height: 32px; box-sizing: border-box;
+  }
   .details-filter-bar select {
     padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px;
     font-size: 13px; min-width: 180px; background: #fff;
@@ -273,6 +277,10 @@
   .team-row:last-child { border-bottom: none; }
   .team-row.is-new { background: #E1F5EF; }
   .team-row .team-tag { font-size: 11px; color: var(--teal); font-weight: 600; margin-left: 8px; }
+  .dd-switch { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 14px; }
+  .dd-sw-btn { background: #fff; border: 1px solid var(--border); color: var(--grey); padding: 7px 16px; border-radius: 999px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .dd-sw-btn:hover { border-color: var(--navy); color: var(--navy); }
+  .dd-sw-btn.active { background: var(--navy); border-color: var(--navy); color: #fff; }
   .team-count { font-size: 12px; color: var(--grey); margin: 0 0 8px; }
   .team-add-row { display: flex; gap: 8px; }
   .team-add-row input[type=text] {
@@ -570,8 +578,13 @@
         <div id="tab-salesteam" class="tab-panel">
           <div class="panel-grid">
             <div class="panel full-width">
-              <h2>Sales team</h2>
-              <p style="color:#667; font-size:13px; margin:0 0 18px;">These names appear in the RM Name dropdown on Add New Lead and Agent Update. Removing a name only hides it from the dropdown &mdash; leads already assigned to that person stay as they are. Only visible to TL login.</p>
+              <h2 id="dd-title">Sales team</h2>
+              <div class="dd-switch" id="dd-switch">
+                <button type="button" class="dd-sw-btn active" data-dd="rm" onclick="ddSelect('rm')">RM</button>
+                <button type="button" class="dd-sw-btn" data-dd="status" onclick="ddSelect('status')">Lead status</button>
+                <button type="button" class="dd-sw-btn" data-dd="source" onclick="ddSelect('source')">Lead source</button>
+              </div>
+              <p id="dd-desc" style="color:#667; font-size:13px; margin:0 0 18px;"></p>
               <div class="team-layout">
                 <div>
                   <p class="team-count" id="team-count"></p>
@@ -579,9 +592,9 @@
                 </div>
                 <div>
                   <div class="filter-group">
-                    <label for="team-new-name">Add a sales person</label>
+                    <label for="team-new-name" id="dd-add-label">Add a sales person</label>
                     <div class="team-add-row">
-                      <input type="text" id="team-new-name" placeholder="Full name, e.g. Abhijit Ghosh" maxlength="60" autocomplete="off">
+                      <input type="text" id="team-new-name" placeholder="" maxlength="80" autocomplete="off">
                       <button class="primary-btn" type="button" onclick="teamAddName()">Add</button>
                     </div>
                   </div>
@@ -614,8 +627,12 @@
                   <select id="d-filter-source"><option value="">All sources</option></select>
                 </div>
                 <div class="filter-group">
-                  <label for="d-filter-month">Month</label>
-                  <select id="d-filter-month"><option value="">All months</option></select>
+                  <label for="d-filter-from">From date</label>
+                  <input type="date" id="d-filter-from">
+                </div>
+                <div class="filter-group">
+                  <label for="d-filter-to">To date</label>
+                  <input type="date" id="d-filter-to">
                 </div>
                 <button class="clear-btn" onclick="clearDetailsFilters()">Clear filters</button>
               </div>
@@ -1313,13 +1330,19 @@ function renderLeadsTable(leads) {
   var rmFilter = document.getElementById('d-filter-rm').value;
   var statusFilter = document.getElementById('d-filter-status').value;
   var sourceFilter = document.getElementById('d-filter-source').value;
-  var monthFilter = document.getElementById('d-filter-month').value;
+  var fromDate = document.getElementById('d-filter-from').value; // yyyy-mm-dd
+  var toDate = document.getElementById('d-filter-to').value;
 
   var visibleLeads = leads.filter(function (l) {
     if (rmFilter && (l.rm_names || []).indexOf(rmFilter) === -1) return false;
     if (statusFilter && String(l.status_raw || '').trim().toLowerCase() !== statusFilter.trim().toLowerCase()) return false;
     if (sourceFilter && String(l.lead_source || '').trim().toLowerCase() !== sourceFilter.trim().toLowerCase()) return false;
-    if (monthFilter && l.lead_month !== monthFilter) return false;
+    if (fromDate || toDate) {
+      var ld = String(l.lead_date || '').slice(0, 10);
+      if (!ld) return false;
+      if (fromDate && ld < fromDate) return false;
+      if (toDate && ld > toDate) return false;
+    }
     return true;
   });
 
@@ -1411,6 +1434,7 @@ function populateDetailsFilterOptions() {
     var key = s.toLowerCase();
     if (!seenSrc[key]) { seenSrc[key] = true; sources.push(s); }
   });
+  if (!seenSrc['ill leads desk']) { seenSrc['ill leads desk'] = true; sources.push('ILL Leads Desk'); }
   sources.sort();
   sources.forEach(function (s) {
     var opt = document.createElement('option');
@@ -1419,18 +1443,8 @@ function populateDetailsFilterOptions() {
   });
   sourceSel.value = prevSource;
 
-  // Month dropdown: "All months" on top, then months (newest first)
-  var monthSel = document.getElementById('d-filter-month');
-  var prevMonth = monthSel.value;
-  while (monthSel.options.length > 1) monthSel.remove(1);
   var monthSet = {};
   ALL_LEADS.forEach(function (l) { if (l.lead_month) monthSet[l.lead_month] = true; });
-  Object.keys(monthSet).sort().reverse().forEach(function (m) {
-    var opt = document.createElement('option');
-    opt.value = m; opt.textContent = formatMonthLabel_(m);
-    monthSel.appendChild(opt);
-  });
-  monthSel.value = prevMonth;
 
   // Month dropdowns for "Lead status breakup" (lead month) and "Month-wise trend"
   // (lead month + close month). "All months" first, then newest first.
@@ -1457,7 +1471,8 @@ function clearDetailsFilters() {
   document.getElementById('d-filter-rm').value = '';
   document.getElementById('d-filter-status').value = '';
   document.getElementById('d-filter-source').value = '';
-  document.getElementById('d-filter-month').value = '';
+  document.getElementById('d-filter-from').value = '';
+  document.getElementById('d-filter-to').value = '';
   renderAll();
 }
 
@@ -1502,7 +1517,8 @@ async function refreshData() {
 document.getElementById('d-filter-rm').addEventListener('change', renderAll);
 document.getElementById('d-filter-status').addEventListener('change', renderAll);
 document.getElementById('d-filter-source').addEventListener('change', renderAll);
-document.getElementById('d-filter-month').addEventListener('change', renderAll);
+document.getElementById('d-filter-from').addEventListener('change', renderAll);
+document.getElementById('d-filter-to').addEventListener('change', renderAll);
 document.getElementById('s-filter-month').addEventListener('change', renderAll);
 document.getElementById('t-filter-month').addEventListener('change', renderAll);
 
@@ -1605,7 +1621,7 @@ var DEFAULT_RM_OPTIONS = ["Nikhil Jha", "Umakant Thakur", "Ashok Pandey", "Prita
 // Code.gs's EDITABLE_COLUMNS sends back as the key in "values".
 var AGENT_EDITABLE_COLUMNS = [
   { label: "Lead Source", header: "LEAD SOURCE", type: "select", required: true,
-    options: ["GTPLKCBPL campaign lead", "ILL campaign Call Back", "ILL campaign Incoming Call", "Whats App Lead"] },
+    options: ["GTPLKCBPL campaign lead", "ILL campaign Call Back", "ILL campaign Incoming Call", "Whats App Lead", "ILL Leads Desk"] },
   { label: "Company Name & Address", header: "Company Name & Address", type: "textarea" },
   { label: "Type of Connection", header: "TYPE OF CONNECTION", type: "select", required: true,
     options: ["CORPORATE BB", "ILL", "OTHER", "P2P"] },
@@ -1842,7 +1858,7 @@ function agentFieldChanged(cardId) {
       '<label>New value</label>' +
       '<select data-role="new-value">' +
         '<option value="">Choose&hellip;</option>' +
-        col.options.map(function (opt) { return '<option value="' + opt + '">' + opt + '</option>'; }).join('') +
+        col.options.map(function (opt) { return '<option value="' + escapeHtml_(opt) + '">' + escapeHtml_(opt) + '</option>'; }).join('') +
       '</select>';
   } else if (colType === 'textarea') {
     newValueContainer.innerHTML =
@@ -1996,7 +2012,7 @@ function renderAddLeadFields() {
       inputHtml =
         '<select id="' + fieldId + '">' +
           '<option value="">Choose&hellip;</option>' +
-          col.options.map(function (opt) { return '<option value="' + opt + '">' + opt + '</option>'; }).join('') +
+          col.options.map(function (opt) { return '<option value="' + escapeHtml_(opt) + '">' + escapeHtml_(opt) + '</option>'; }).join('') +
         '</select>';
     } else if (col.type === 'textarea') {
       inputHtml = '<textarea id="' + fieldId + '" rows="2"></textarea>';
@@ -2151,15 +2167,34 @@ function showDuplicateMobileModal(onContinue) {
 }
 
 // =============================================================================
-// SALES TEAM (TL only) — add / remove names in the RM Name dropdown.
-// The list lives in the "Dropdown Config" sheet, column "RM Name".
+// DROPDOWN LISTS (TL only) — add / remove entries in the RM Name, Lead Status
+// and Lead Source dropdowns. Each list lives in its own column of the
+// "Dropdown Config" sheet.
 // =============================================================================
-var TEAM_SAVED = [];   // list as last loaded from / saved to the sheet
-var TEAM_DRAFT = [];   // list being edited in the tab (not yet saved)
+var DD_META = {
+  rm: {
+    sheetCol: 'RM Name', header: 'RM NAME', title: 'Sales team', one: 'person', many: 'people',
+    desc: 'These names appear in the RM Name dropdown on Add New Lead and Agent Update. Removing a name only hides it from the dropdown \u2014 leads already assigned to that person stay as they are. Only visible to TL login.',
+    addLabel: 'Add a sales person', placeholder: 'Full name, e.g. Abhijit Ghosh', minLen: 3, dropdown: 'RM Name'
+  },
+  status: {
+    sheetCol: 'Lead Status', header: 'LEAD STATUS', title: 'Lead status', one: 'status', many: 'statuses',
+    desc: 'These options appear in the Lead Status dropdown on Add New Lead and Agent Update. Removing a status only hides it from the dropdown \u2014 existing leads keep their status. A brand-new status will show in the tables, but will not count as a "valid lead" unless it is added to the valid-status list in the dashboard code. Only visible to TL login.',
+    addLabel: 'Add a lead status', placeholder: 'e.g. Site Survey Done', minLen: 3, dropdown: 'Lead Status'
+  },
+  source: {
+    sheetCol: 'Lead Source', header: 'LEAD SOURCE', title: 'Lead source', one: 'source', many: 'sources',
+    desc: 'These options appear in the Lead Source dropdown on Add New Lead and Agent Update. Removing a source only hides it from the dropdown \u2014 existing leads keep their source. Only visible to TL login.',
+    addLabel: 'Add a lead source', placeholder: 'e.g. ILL Leads Desk', minLen: 3, dropdown: 'Lead Source'
+  }
+};
+var DD_CURRENT = 'rm';
+var DD_SAVED = { rm: [], status: [], source: [] };   // as last loaded from / saved to the sheet
+var DD_DRAFT = { rm: [], status: [], source: [] };   // being edited (not yet saved)
 var TEAM_SAVING = false;
 
-function rmColumn_() {
-  return AGENT_EDITABLE_COLUMNS.filter(function (c) { return c.header === 'RM NAME'; })[0];
+function ddColumn_(key) {
+  return AGENT_EDITABLE_COLUMNS.filter(function (c) { return c.header === DD_META[key].header; })[0];
 }
 
 function escapeHtml_(str) {
@@ -2172,40 +2207,62 @@ function cleanName_(raw) {
   return String(raw || '').trim().replace(/\s+/g, ' ');
 }
 
-// Loads the RM list from the sheet and applies it to the RM Name dropdown.
-// Keeps the hardcoded fallback if the request fails or the list is empty.
+// Loads all three lists from the sheet and applies them to the dropdowns.
+// Keeps the hardcoded fallback for any list that fails to load or is empty.
 async function loadSalesTeam_() {
   try {
     var data = await agentPostToScript({ action: 'get_dropdown_config' });
-    var list = (data && data.success && data.config && data.config['RM Name']) || [];
-    if (list.length) applySalesTeam_(list);
+    var cfg = (data && data.success && data.config) || {};
+    Object.keys(DD_META).forEach(function (key) {
+      var list = cfg[DD_META[key].sheetCol] || [];
+      if (list.length) applyDropdownList_(key, list);
+    });
   } catch (err) {
-    console.warn('Sales team list not loaded, using built-in list:', err);
+    console.warn('Dropdown lists not loaded, using built-in lists:', err);
   }
 }
 
-function applySalesTeam_(list) {
-  var col = rmColumn_();
+function applyDropdownList_(key, list) {
+  var col = ddColumn_(key);
   if (col) col.options = list.slice();
-  TEAM_SAVED = list.slice();
+  DD_SAVED[key] = list.slice();
 }
 
 function teamIsDirty_() {
-  return TEAM_DRAFT.join('\u0001') !== TEAM_SAVED.join('\u0001');
+  return DD_DRAFT[DD_CURRENT].join('\u0001') !== DD_SAVED[DD_CURRENT].join('\u0001');
+}
+
+function ddSelect(key) {
+  if (!DD_META[key]) return;
+  DD_CURRENT = key;
+  teamSetAddMsg_('', '');
+  document.getElementById('team-save-msg').textContent = '';
+  teamOpenTab_();
 }
 
 function teamOpenTab_() {
-  if (!TEAM_SAVED.length) TEAM_SAVED = (rmColumn_() || { options: [] }).options.slice();
-  if (!teamIsDirty_() || !TEAM_DRAFT.length) TEAM_DRAFT = TEAM_SAVED.slice();
+  var key = DD_CURRENT, meta = DD_META[key];
+  if (!DD_SAVED[key].length) DD_SAVED[key] = (ddColumn_(key) || { options: [] }).options.slice();
+  if (!teamIsDirty_() || !DD_DRAFT[key].length) DD_DRAFT[key] = DD_SAVED[key].slice();
+
+  document.getElementById('dd-title').textContent = meta.title;
+  document.getElementById('dd-desc').textContent = meta.desc;
+  document.getElementById('dd-add-label').textContent = meta.addLabel;
+  document.getElementById('team-new-name').placeholder = meta.placeholder;
+  document.querySelectorAll('#dd-switch .dd-sw-btn').forEach(function (b) {
+    b.classList.toggle('active', b.getAttribute('data-dd') === key);
+  });
   teamRender_();
 }
 
 function teamRender_() {
-  var savedKeys = TEAM_SAVED.map(function (n) { return n.toLowerCase(); });
+  var key = DD_CURRENT, meta = DD_META[key];
+  var draft = DD_DRAFT[key], saved = DD_SAVED[key];
+  var savedKeys = saved.map(function (n) { return n.toLowerCase(); });
   document.getElementById('team-count').textContent =
-    TEAM_DRAFT.length + (TEAM_DRAFT.length === 1 ? ' person' : ' people') + ' in the dropdown';
+    draft.length + ' ' + (draft.length === 1 ? meta.one : meta.many) + ' in the dropdown';
 
-  document.getElementById('team-list').innerHTML = TEAM_DRAFT.map(function (name, i) {
+  document.getElementById('team-list').innerHTML = draft.map(function (name, i) {
     var isNew = savedKeys.indexOf(name.toLowerCase()) === -1;
     return '<div class="team-row' + (isNew ? ' is-new' : '') + '">' +
       '<span>' + escapeHtml_(name) + (isNew ? '<span class="team-tag">New, not saved</span>' : '') + '</span>' +
@@ -2219,9 +2276,8 @@ function teamRender_() {
   saveBtn.disabled = !dirty || TEAM_SAVING;
   saveBtn.textContent = TEAM_SAVING ? 'Saving\u2026' : 'Save changes';
 
-  var removed = TEAM_SAVED.filter(function (n) {
-    return TEAM_DRAFT.map(function (d) { return d.toLowerCase(); }).indexOf(n.toLowerCase()) === -1;
-  });
+  var draftKeys = draft.map(function (d) { return d.toLowerCase(); });
+  var removed = saved.filter(function (n) { return draftKeys.indexOf(n.toLowerCase()) === -1; });
   var msgEl = document.getElementById('team-save-msg');
   if (!TEAM_SAVING && dirty) {
     msgEl.className = 'team-msg warn';
@@ -2239,14 +2295,15 @@ function teamSetAddMsg_(text, kind) {
 }
 
 function teamAddName() {
+  var key = DD_CURRENT, meta = DD_META[key];
   var input = document.getElementById('team-new-name');
   var name = cleanName_(input.value);
-  if (!name) { teamSetAddMsg_('Type a name first.', 'err'); input.focus(); return; }
-  if (name.length < 3) { teamSetAddMsg_('Name looks too short. Enter the full name.', 'err'); input.focus(); return; }
-  var exists = TEAM_DRAFT.some(function (n) { return n.toLowerCase() === name.toLowerCase(); });
+  if (!name) { teamSetAddMsg_('Type a value first.', 'err'); input.focus(); return; }
+  if (name.length < meta.minLen) { teamSetAddMsg_('That looks too short. Enter the full text.', 'err'); input.focus(); return; }
+  var exists = DD_DRAFT[key].some(function (n) { return n.toLowerCase() === name.toLowerCase(); });
   if (exists) { teamSetAddMsg_(name + ' is already in the list.', 'err'); input.select(); return; }
 
-  TEAM_DRAFT.push(name);
+  DD_DRAFT[key].push(name);
   input.value = '';
   teamSetAddMsg_(name + ' added. Click Save changes to update the dropdown.', 'ok');
   teamRender_();
@@ -2254,30 +2311,32 @@ function teamAddName() {
 }
 
 function teamRemoveName(index) {
-  var name = TEAM_DRAFT[index];
+  var key = DD_CURRENT;
+  var name = DD_DRAFT[key][index];
   if (name === undefined) return;
-  if (TEAM_DRAFT.length === 1) { teamSetAddMsg_('Keep at least one name in the list.', 'err'); return; }
-  TEAM_DRAFT.splice(index, 1);
+  if (DD_DRAFT[key].length === 1) { teamSetAddMsg_('Keep at least one entry in the list.', 'err'); return; }
+  DD_DRAFT[key].splice(index, 1);
   teamSetAddMsg_(name + ' removed from the list. Click Save changes to confirm.', 'warn');
   teamRender_();
 }
 
 async function teamSave() {
   if (CURRENT_ROLE !== 'tl' || TEAM_SAVING || !teamIsDirty_()) return;
+  var key = DD_CURRENT, meta = DD_META[key];
   TEAM_SAVING = true;
   var msgEl = document.getElementById('team-save-msg');
   msgEl.className = 'team-msg';
   msgEl.textContent = '';
   teamRender_();
   try {
-    var data = await agentPostToScript({ action: 'update_dropdown_config', column: 'RM Name', values: TEAM_DRAFT });
+    var data = await agentPostToScript({ action: 'update_dropdown_config', column: meta.sheetCol, values: DD_DRAFT[key] });
     if (!data || !data.success) throw new Error((data && data.error) || 'Unknown error from the sheet.');
-    applySalesTeam_(data.values || TEAM_DRAFT);
-    TEAM_DRAFT = TEAM_SAVED.slice();
+    applyDropdownList_(key, data.values || DD_DRAFT[key]);
+    DD_DRAFT[key] = DD_SAVED[key].slice();
     // Refresh the Add New Lead form if it's open, so the new list shows straight away.
     if (typeof ADD_LEAD_FORM_VISIBLE !== 'undefined' && ADD_LEAD_FORM_VISIBLE) renderAddLeadFields();
     msgEl.className = 'team-msg ok';
-    msgEl.textContent = 'Saved. The RM Name dropdown now shows ' + TEAM_SAVED.length + ' people.';
+    msgEl.textContent = 'Saved. The ' + meta.dropdown + ' dropdown now shows ' + DD_SAVED[key].length + ' ' + (DD_SAVED[key].length === 1 ? meta.one : meta.many) + '.';
     teamSetAddMsg_('', '');
   } catch (err) {
     msgEl.className = 'team-msg err';
