@@ -579,6 +579,7 @@
                 <button type="button" class="dd-sw-btn active" data-dd="rm" onclick="ddSelect('rm')">RM</button>
                 <button type="button" class="dd-sw-btn" data-dd="status" onclick="ddSelect('status')">Lead status</button>
                 <button type="button" class="dd-sw-btn" data-dd="source" onclick="ddSelect('source')">Lead source</button>
+                <button type="button" class="dd-sw-btn" data-dd="isp" onclick="ddSelect('isp')">ISP</button>
               </div>
               <p id="dd-desc" style="color:#667; font-size:13px; margin:0 0 18px;"></p>
               <div class="team-layout">
@@ -634,7 +635,7 @@
                   <thead>
                     <tr>
                       <th>Date</th><th>Source</th><th>Company Name</th><th>Contact</th><th>Mobile</th>
-                      <th>Connection</th><th>RM</th><th>Status</th>
+                      <th>Connection</th><th>Current ISP</th><th>RM</th><th>Status</th>
                       <th class="num">Price</th><th class="num">Revenue</th><th>Close month</th>
                       <th>RM Remarks</th>
                     </tr>
@@ -1352,7 +1353,7 @@ function renderLeadsTable(leads) {
   tbody.innerHTML = '';
   var limited = visibleLeads.slice(0, 300);
   if (limited.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="12" class="empty-note">No leads found</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="13" class="empty-note">No leads found</td></tr>';
     return;
   }
   limited.forEach(function (l) {
@@ -1364,6 +1365,7 @@ function renderLeadsTable(leads) {
       '<td>' + (l.contact_person || '') + '</td>' +
       '<td>' + (l.mobile || '') + '</td>' +
       '<td><span class="ctype-badge ' + ctypeClass_(l.connection_type) + '">' + (l.connection_type || '') + '</span></td>' +
+      '<td>' + escapeHtml_(l.current_isp || '') + '</td>' +
       '<td>' + ((l.rm_names || []).join(', ')) + '</td>' +
       '<td><span class="status-pill ' + statusClass(l.status_category) + '">' + (l.status_raw || l.status_category) + '</span></td>' +
       '<td class="num">' + (l.price_numeric ? Math.round(l.price_numeric).toLocaleString('en-IN') : '') + '</td>' +
@@ -1574,7 +1576,7 @@ function downloadMonthCsv() {
 
   var cols = [
     ['Lead Date', 'lead_date'], ['Lead Source', 'lead_source'], ['Company Name & Address', 'company'],
-    ['Type of Connection', 'connection_type'], ['Speed / Bandwidth', 'speed'], ['Price (Rs.)', 'price_raw'],
+    ['Type of Connection', 'connection_type'], ['Speed / Bandwidth', 'speed'], ['Price (Rs.)', 'price_raw'], ['Current ISP / Competitor', 'current_isp'],
     ['Contact Person', 'contact_person'], ['Mobile No', 'mobile'], ['Pin Code', 'pin_code'],
     ['Caller Name', 'caller_name'], ['Remarks', 'remarks'], ['RM Name', 'rm_names'],
     ['RM Remarks', 'rm_remarks'], ['RM Follow Up Date', 'rm_followup_date'],
@@ -1611,6 +1613,15 @@ document.getElementById('dl-month').addEventListener('change', updateDownloadInf
 var DEFAULT_RM_OPTIONS = ["Nikhil Jha", "Umakant Thakur", "Ashok Pandey", "Pritam Das", "Sudip Bose",
   "Tapas Dandapat", "Tathagata Samasddar", "Moumita Roy", "Partha Ghosh", "Navid Anjum", "Abhijit Ghosh"];
 
+// Fallback ISP list — used only if the sheet list can't be loaded. The live
+// list is kept in the "Dropdown Config" sheet ("Current ISP" column) and is
+// edited by TL from the Sales Team tab > ISP. "New", "Not Disclosed" and
+// "Other" are fixed options (Other opens a box to type the ISP name).
+var ISP_FIXED_OPTIONS = ["New", "Not Disclosed", "Other"];
+var DEFAULT_ISP_OPTIONS = ["Airtel", "Jio", "Vodafone Idea (Vi)", "BSNL", "Tata Communications", "Sify",
+  "RailTel", "Ortel", "Hathway", "Siti Broadband", "Tikona", "Spectranet", "Alliance Broadband", "Fusionnet",
+  "New", "Not Disclosed", "Other"];
+
 // Column list shown in the dropdown — label must exactly match what
 // Code.gs's EDITABLE_COLUMNS sends back as the key in "values".
 var AGENT_EDITABLE_COLUMNS = [
@@ -1621,6 +1632,8 @@ var AGENT_EDITABLE_COLUMNS = [
     options: ["CORPORATE BB", "ILL", "OTHER", "P2P"] },
   { label: "Speed / Bandwidth", header: "Speed / Bandwidth", type: "speed", defaultZero: true },
   { label: "Price (Rs.)", header: "Price (Rs.)", type: "number", defaultZero: true, skipOnAdd: true },
+  { label: "Current ISP / Competitor", header: "CURRENT ISP / COMPETITOR", type: "isp",
+    options: DEFAULT_ISP_OPTIONS.slice() },
   { label: "Contact Person Name", header: "Contact Person name", type: "text" },
   { label: "Contact Person Designation", header: "Contact Person Designation", type: "text" },
   { label: "Mobile No", header: "Mobile No", type: "mobile", required: true },
@@ -1815,6 +1828,39 @@ function renderAgentResults(matches) {
   });
 }
 
+// ---- Current ISP / Competitor dropdown helpers (select + "Other" text box) ----
+function ispSelectHtml_(col, selectAttrs) {
+  var normal = col.options.filter(function (o) { return ISP_FIXED_OPTIONS.indexOf(o) === -1; });
+  var all = normal.concat(ISP_FIXED_OPTIONS);
+  return '<div class="isp-field">' +
+    '<select ' + selectAttrs + ' onchange="ispOtherToggle_(this)">' +
+      '<option value="">Choose&hellip;</option>' +
+      all.map(function (opt) { return '<option value="' + escapeHtml_(opt) + '">' + escapeHtml_(opt) + '</option>'; }).join('') +
+    '</select>' +
+    '<input type="text" class="isp-other-input" maxlength="60" placeholder="Type the ISP name" style="display:none; margin-top:8px;">' +
+  '</div>';
+}
+
+function ispOtherToggle_(sel) {
+  var inp = sel.parentNode.querySelector('.isp-other-input');
+  if (!inp) return;
+  inp.style.display = sel.value === 'Other' ? 'block' : 'none';
+  if (sel.value !== 'Other') inp.value = '';
+  else inp.focus();
+}
+
+// Returns { value } or { error }. "Other" is saved as "Other - <ISP name>".
+function ispReadValue_(sel) {
+  var v = String(sel.value || '').trim();
+  if (v === 'Other') {
+    var inp = sel.parentNode.querySelector('.isp-other-input');
+    var t = cleanName_(inp ? inp.value : '');
+    if (!t) return { error: 'Type the ISP name for "Other".' };
+    return { value: 'Other - ' + t };
+  }
+  return { value: v };
+}
+
 function agentFieldChanged(cardId) {
   var card = document.getElementById(cardId);
   var select = card.querySelector('.agent-field-select');
@@ -1847,6 +1893,10 @@ function agentFieldChanged(cardId) {
           '<option value="Kbps">Kbps</option>' +
         '</select>' +
       '</div>';
+  } else if (colType === 'isp') {
+    newValueContainer.innerHTML =
+      '<label>New value</label>' +
+      ispSelectHtml_(col, 'data-role="new-value"');
   } else if (colType === 'select') {
     newValueContainer.innerHTML =
       '<label>New value</label>' +
@@ -1921,6 +1971,15 @@ async function agentSubmitUpdate(cardId, sheetRowNumber) {
       return;
     }
     newValue = num + ' ' + unit;
+  } else if (header === 'CURRENT ISP / COMPETITOR') {
+    var ispRes = ispReadValue_(card.querySelector('[data-role="new-value"]'));
+    if (ispRes.error || !ispRes.value) {
+      statusEl.className = 'agent-status-msg error';
+      statusEl.textContent = ispRes.error || 'Choose an ISP.';
+      statusEl.style.display = 'block';
+      return;
+    }
+    newValue = ispRes.value;
   } else {
     newValue = card.querySelector('[data-role="new-value"]').value.trim();
     if (header === 'Mobile No') {
@@ -2002,6 +2061,8 @@ function renderAddLeadFields() {
             '<option value="Kbps">Kbps</option>' +
           '</select>' +
         '</div>';
+    } else if (col.type === 'isp') {
+      inputHtml = ispSelectHtml_(col, 'id="' + fieldId + '"');
     } else if (col.type === 'select') {
       inputHtml =
         '<select id="' + fieldId + '">' +
@@ -2056,6 +2117,13 @@ async function submitNewLead() {
       } else if (col.defaultZero) {
         fields[col.header] = '0';
       }
+      return;
+    }
+
+    if (col.type === 'isp') {
+      var ispAdd = ispReadValue_(document.getElementById(fieldId));
+      if (ispAdd.error) { errors.push(ispAdd.error); return; }
+      if (ispAdd.value) fields[col.header] = ispAdd.value;
       return;
     }
 
@@ -2180,11 +2248,17 @@ var DD_META = {
     sheetCol: 'Lead Source', header: 'LEAD SOURCE', title: 'Lead source', one: 'source', many: 'sources',
     desc: 'These options appear in the Lead Source dropdown on Add New Lead and Agent Update. Removing a source only hides it from the dropdown \u2014 existing leads keep their source. Only visible to TL login.',
     addLabel: 'Add a lead source', placeholder: 'e.g. ILL Leads Desk', minLen: 3, dropdown: 'Lead Source'
+  },
+  isp: {
+    sheetCol: 'Current ISP', header: 'CURRENT ISP / COMPETITOR', title: 'ISP', one: 'ISP', many: 'ISPs',
+    desc: 'These options appear in the Current ISP / Competitor dropdown on Add New Lead and Agent Update. It shows which ISP a customer uses today and, for a lead lost to a competitor, the competitor it went to. Removing an ISP only hides it from the dropdown \u2014 existing leads keep their value. "New", "Not Disclosed" and "Other" are fixed and cannot be removed. Only visible to TL login.',
+    addLabel: 'Add an ISP', placeholder: 'e.g. Airtel', minLen: 2, dropdown: 'Current ISP / Competitor',
+    locked: ['New', 'Not Disclosed', 'Other']
   }
 };
 var DD_CURRENT = 'rm';
-var DD_SAVED = { rm: [], status: [], source: [] };   // as last loaded from / saved to the sheet
-var DD_DRAFT = { rm: [], status: [], source: [] };   // being edited (not yet saved)
+var DD_SAVED = { rm: [], status: [], source: [], isp: [] };   // as last loaded from / saved to the sheet
+var DD_DRAFT = { rm: [], status: [], source: [], isp: [] };   // being edited (not yet saved)
 var TEAM_SAVING = false;
 
 function ddColumn_(key) {
@@ -2258,10 +2332,12 @@ function teamRender_() {
 
   document.getElementById('team-list').innerHTML = draft.map(function (name, i) {
     var isNew = savedKeys.indexOf(name.toLowerCase()) === -1;
+    var isLocked = !!(meta.locked && meta.locked.indexOf(name) !== -1);
     return '<div class="team-row' + (isNew ? ' is-new' : '') + '">' +
-      '<span>' + escapeHtml_(name) + (isNew ? '<span class="team-tag">New, not saved</span>' : '') + '</span>' +
+      '<span>' + escapeHtml_(name) + (isNew ? '<span class="team-tag">New, not saved</span>' : '') + (isLocked ? '<span class="team-tag">Fixed</span>' : '') + '</span>' +
+      (isLocked ? '' :
       '<button class="admin-remove-btn" type="button" title="Remove ' + escapeHtml_(name) + '" ' +
-        'aria-label="Remove ' + escapeHtml_(name) + '" onclick="teamRemoveName(' + i + ')">&times;</button>' +
+        'aria-label="Remove ' + escapeHtml_(name) + '" onclick="teamRemoveName(' + i + ')">&times;</button>') +
     '</div>';
   }).join('');
 
@@ -2308,6 +2384,7 @@ function teamRemoveName(index) {
   var key = DD_CURRENT;
   var name = DD_DRAFT[key][index];
   if (name === undefined) return;
+  if (DD_META[key].locked && DD_META[key].locked.indexOf(name) !== -1) { teamSetAddMsg_(name + ' is a fixed option and cannot be removed.', 'err'); return; }
   if (DD_DRAFT[key].length === 1) { teamSetAddMsg_('Keep at least one entry in the list.', 'err'); return; }
   DD_DRAFT[key].splice(index, 1);
   teamSetAddMsg_(name + ' removed from the list. Click Save changes to confirm.', 'warn');
